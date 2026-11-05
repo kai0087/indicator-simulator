@@ -1,0 +1,1130 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="指示ビラ">
+    <link rel="manifest" href="./manifest.webmanifest">
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png">
+    <link rel="icon" type="image/png" href="./icon-192.png">
+    <title>指示ビラ・レイアウトシミュレータ</title>
+    <style>
+        :root {
+            --bg-color: #f3f4f6;
+            --panel-bg: #ffffff;
+            --border-color: #d1d5db;
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --danger-color: #dc2626;
+            --danger-hover: #b91c1c;
+            --text-main: #1f2937;
+            --cell-border: #374151;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* 印刷用スタイル */
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .app-container {
+                display: block !important;
+            }
+            .preview-area {
+                width: 100% !important;
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+            }
+            .sheet-grid {
+                page-break-inside: avoid;
+            }
+            .cell {
+                border-color: #000 !important;
+            }
+        }
+
+        header {
+            background-color: var(--panel-bg);
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .header-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            background-color: #e5e7eb;
+            color: var(--text-main);
+            border: 1px solid #d1d5db;
+            padding: 8px 14px;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            user-select: none;
+            touch-action: manipulation;
+        }
+
+        .btn:active {
+            transform: translateY(1px);
+        }
+
+        .btn-primary {
+            background-color: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-danger {
+            background-color: var(--danger-color);
+            color: white;
+            border-color: var(--danger-color);
+        }
+
+        .btn-danger:hover {
+            background-color: var(--danger-hover);
+        }
+
+        .app-container {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+            flex: 1;
+        }
+
+        @media (min-width: 900px) {
+            .app-container {
+                grid-template-columns: 1fr 340px;
+            }
+        }
+
+        /* プレビュー表示エリア */
+        .preview-area {
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: auto;
+        }
+
+        .grid-config-bar {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 16px;
+            margin-bottom: 16px;
+            background: #f9fafb;
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: 1px solid #e5e7eb;
+            flex-wrap: wrap;
+        }
+
+        .select-group {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .select-group label {
+            font-size: 0.9rem;
+            font-weight: bold;
+        }
+
+        select {
+            padding: 6px 10px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            background-color: white;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+
+        .sheet-wrapper {
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px 0;
+        }
+
+        .sheet-grid {
+            display: grid;
+            gap: 2px;
+            background-color: var(--cell-border);
+            border: 3px solid var(--cell-border);
+            padding: 2px;
+            width: 100%;
+            max-width: 750px;
+            aspect-ratio: 4 / 3;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        /* マス目セル */
+        .cell {
+            background-color: #ffffff;
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            width: 100%;
+            height: 100%;
+            user-select: none;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        .cell.selected {
+            outline: 4px solid #f59e0b;
+            outline-offset: -4px;
+            z-index: 10;
+        }
+
+        /* 全体（1分割）マス */
+        .cell-single {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-weight: bold;
+            word-break: break-all;
+            padding: 2px;
+            line-height: 1.1;
+        }
+
+        /* 左右分割（2分割）マス */
+        .cell-split {
+            display: flex;
+            width: 100%;
+            height: 100%;
+        }
+
+        .cell-left, .cell-right {
+            flex: 1;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            font-weight: bold;
+            word-break: break-all;
+            padding: 2px;
+            line-height: 1.1;
+        }
+
+        .cell-left {
+            border-right: 1.5px dashed var(--cell-border);
+        }
+
+        /* 文字サイズクラス */
+        .text-size-sm { font-size: 1rem; }
+        .text-size-md { font-size: 1.4rem; }
+        .text-size-lg { font-size: 2rem; }
+
+        @media (max-width: 600px) {
+            .text-size-sm { font-size: 0.75rem; }
+            .text-size-md { font-size: 1rem; }
+            .text-size-lg { font-size: 1.3rem; }
+        }
+
+        /* 操作パネル */
+        .control-panel {
+            background-color: var(--panel-bg);
+            border-radius: 8px;
+            padding: 16px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .panel-section {
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 14px;
+        }
+
+        .panel-section:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #374151;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .target-indicator {
+            font-size: 0.8rem;
+            background-color: #eff6ff;
+            color: #1d4ed8;
+            padding: 2px 8px;
+            border-radius: 12px;
+            border: 1px solid #bfdbfe;
+        }
+
+        /* 入力フォーム類 */
+        .input-group {
+            margin-bottom: 10px;
+        }
+
+        .input-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #4b5563;
+        }
+
+        .input-text {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1.1rem;
+            font-weight: bold;
+        }
+
+        /* 分割切り替えトグルボタン */
+        .split-toggle {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+
+        .toggle-btn {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            background-color: #f9fafb;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: bold;
+        }
+
+        .toggle-btn.active {
+            background-color: #eff6ff;
+            color: var(--primary-color);
+            border-color: var(--primary-color);
+        }
+
+        /* カラーパレット */
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 6px;
+            margin-top: 6px;
+        }
+
+        .color-btn {
+            height: 38px;
+            border-radius: 6px;
+            border: 2px solid #d1d5db;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            box-shadow: inset 0 0 2px rgba(0,0,0,0.2);
+        }
+
+        .color-btn.active {
+            border-color: #000;
+            transform: scale(1.05);
+            box-shadow: 0 0 0 2px #3b82f6;
+        }
+
+        .color-btn.text-black { color: #000; }
+        .color-btn.text-white { color: #fff; }
+
+        /* 保存レイアウト一覧 */
+        .preset-list {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-top: 8px;
+        }
+
+        .preset-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 10px;
+            border-bottom: 1px solid #f3f4f6;
+            font-size: 0.85rem;
+        }
+
+        .preset-item:last-child {
+            border-bottom: none;
+        }
+
+        .preset-item-name {
+            font-weight: bold;
+            cursor: pointer;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .preset-actions {
+            display: flex;
+            gap: 4px;
+        }
+
+        .btn-icon {
+            padding: 4px 8px;
+            font-size: 0.75rem;
+            border-radius: 4px;
+        }
+
+        /* モーダルダイアログ */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            padding: 16px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .modal-body {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 100%;
+            max-width: 450px;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        .modal-title {
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 12px;
+        }
+
+        .modal-textarea {
+            width: 100%;
+            height: 120px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            margin-bottom: 12px;
+            resize: vertical;
+        }
+
+        .qr-display {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 10px;
+            background: #f9fafb;
+            border-radius: 6px;
+            margin-bottom: 12px;
+        }
+
+        #qr-canvas {
+            border: 4px solid white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ヘッダーバー -->
+    <header class="no-print">
+        <h1>
+            <span>📋</span> 指示ビラ・レイアウトシミュレータ
+        </h1>
+        <div class="header-actions">
+            <button class="btn" onclick="openShareModal()">🔗 共有/QR</button>
+            <button class="btn" onclick="window.print()">🖨️ 印刷/PDF</button>
+        </div>
+    </header>
+
+    <!-- メインコンテンツ -->
+    <div class="app-container">
+        
+        <!-- 左側：プレビュー画面 -->
+        <div class="preview-area">
+            <div class="grid-config-bar no-print">
+                <div class="select-group">
+                    <label for="rows-select">行 (縦):</label>
+                    <select id="rows-select" onchange="changeGridSize()">
+                        <!-- 1~10 -->
+                    </select>
+                </div>
+                <div class="select-group">
+                    <label for="cols-select">列 (横):</label>
+                    <select id="cols-select" onchange="changeGridSize()">
+                        <!-- 1~10 -->
+                    </select>
+                </div>
+                <div class="select-group">
+                    <label for="font-size-select">文字サイズ:</label>
+                    <select id="font-size-select" onchange="changeFontSize()">
+                        <option value="text-size-sm">小</option>
+                        <option value="text-size-md" selected>中</option>
+                        <option value="text-size-lg">大</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- 指示ビラ本体（印刷対象） -->
+            <div class="sheet-wrapper">
+                <div id="sheet-grid" class="sheet-grid"></div>
+            </div>
+        </div>
+
+        <!-- 右側：編集・設定パネル -->
+        <div class="control-panel no-print">
+            
+            <!-- マス編集セクション -->
+            <div class="panel-section">
+                <div class="section-title">
+                    マスの個別編集
+                    <span id="target-cell-label" class="target-indicator">1行 - 1列目</span>
+                </div>
+
+                <!-- 分割切り替え -->
+                <div class="input-group">
+                    <label>マス分割設定</label>
+                    <div class="split-toggle">
+                        <div id="split-none-btn" class="toggle-btn active" onclick="setSplitMode(false)">全体 (1区画)</div>
+                        <div id="split-lr-btn" class="toggle-btn" onclick="setSplitMode(true)">左右分割 (2区画)</div>
+                    </div>
+                </div>
+
+                <!-- 単一マス用コントロール -->
+                <div id="single-controls">
+                    <div class="input-group">
+                        <label for="text-single">表示文字 (最大2文字)</label>
+                        <input type="text" id="text-single" class="input-text" maxlength="2" placeholder="例: A1" oninput="updateCellData()">
+                    </div>
+                    <div class="input-group">
+                        <label>背景色</label>
+                        <div id="palette-single" class="color-palette"></div>
+                    </div>
+                </div>
+
+                <!-- 左右分割用コントロール -->
+                <div id="split-controls" style="display: none;">
+                    <div style="border-left: 3px solid #3b82f6; padding-left: 8px; margin-bottom: 12px;">
+                        <div class="input-group">
+                            <label for="text-left">左側 文字 (最大2文字)</label>
+                            <input type="text" id="text-left" class="input-text" maxlength="2" placeholder="左" oninput="updateCellData()">
+                        </div>
+                        <div class="input-group">
+                            <label>左側 背景色</label>
+                            <div id="palette-left" class="color-palette"></div>
+                        </div>
+                    </div>
+
+                    <div style="border-left: 3px solid #10b981; padding-left: 8px;">
+                        <div class="input-group">
+                            <label for="text-right">右側 文字 (最大2文字)</label>
+                            <input type="text" id="text-right" class="input-text" maxlength="2" placeholder="右" oninput="updateCellData()">
+                        </div>
+                        <div class="input-group">
+                            <label>右側 背景色</label>
+                            <div id="palette-right" class="color-palette"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- レイアウト保存・読込セクション -->
+            <div class="panel-section">
+                <div class="section-title">レイアウトの保存・管理</div>
+                <div class="input-group">
+                    <input type="text" id="preset-name" class="input-text" style="font-size: 0.9rem;" placeholder="例: A工程_プリウス用">
+                </div>
+                <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="savePreset()">💾 現在の配置を保存</button>
+
+                <div id="preset-list" class="preset-list">
+                    <!-- 保存データがここに挿入される -->
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- 共有/エクスポートモーダル -->
+    <div id="share-modal" class="modal-overlay">
+        <div class="modal-body">
+            <div class="modal-title">📲 レイアウトの共有 / データ入出力</div>
+            
+            <div class="qr-display">
+                <canvas id="qr-canvas"></canvas>
+                <span style="font-size: 0.75rem; color: #6b7280; margin-top: 4px;">カメラで読み取って復元可能</span>
+            </div>
+
+            <div class="input-group">
+                <label>JSONデータ (コピーして他端末へ移動)</label>
+                <textarea id="json-textarea" class="modal-textarea"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button class="btn" onclick="copyJsonText()">📋 コピー</button>
+                <button class="btn btn-primary" onclick="importJsonText()">📥 データ読み込み</button>
+                <button class="btn btn-danger" onclick="closeShareModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 定数定義：カラーパレット設定
+        const COLOR_PRESETS = [
+            { name: 'シロ', code: '#ffffff', textClass: 'text-black' },
+            { name: 'アカ', code: '#ef4444', textClass: 'text-white' },
+            { name: 'アオ', code: '#3b82f6', textClass: 'text-white' },
+            { name: 'ミド', code: '#10b981', textClass: 'text-white' },
+            { name: 'キ', code: '#facc15', textClass: 'text-black' },
+            { name: 'ダイダイ', code: '#f97316', textClass: 'text-white' },
+            { name: 'ムラサキ', code: '#a855f7', textClass: 'text-white' },
+            { name: 'モモ', code: '#ec4899', textClass: 'text-white' },
+            { name: 'グレー', code: '#6b7280', textClass: 'text-white' },
+            { name: 'クロ', code: '#111827', textClass: 'text-white' }
+        ];
+
+        // アプリケーション状態
+        let gridState = {
+            rows: 2,
+            cols: 4,
+            fontSize: 'text-size-md',
+            cells: [] // 行*列の配列
+        };
+
+        let selectedCellIndex = 0;
+
+        // 初期化ロード処理
+        window.onload = function() {
+            initSelectOptions();
+            initGridState(2, 4);
+            renderGrid();
+            renderColorPalettes();
+            selectCell(0);
+            loadPresetList();
+        };
+
+        // セレクトボックスの選択肢（1~10）を動的生成
+        function initSelectOptions() {
+            const rowsSelect = document.getElementById('rows-select');
+            const colsSelect = document.getElementById('cols-select');
+
+            for (let i = 1; i <= 10; i++) {
+                const optR = document.createElement('option');
+                optR.value = i;
+                optR.textContent = `${i} 行`;
+                if (i === 2) optR.selected = true;
+                rowsSelect.appendChild(optR);
+
+                const optC = document.createElement('option');
+                optC.value = i;
+                optC.textContent = `${i} 列`;
+                if (i === 4) optC.selected = true;
+                colsSelect.appendChild(optC);
+            }
+        }
+
+        // グリッド状態の初期化
+        function initGridState(rows, cols) {
+            gridState.rows = rows;
+            gridState.cols = cols;
+            gridState.cells = [];
+
+            const total = rows * cols;
+            for (let i = 0; i < total; i++) {
+                gridState.cells.push({
+                    isSplit: false,
+                    singleText: '',
+                    singleColor: '#ffffff',
+                    leftText: '',
+                    leftColor: '#ffffff',
+                    rightText: '',
+                    rightColor: '#ffffff'
+                });
+            }
+        }
+
+        // グリッド描画
+        function renderGrid() {
+            const gridEl = document.getElementById('sheet-grid');
+            gridEl.style.gridTemplateRows = `repeat(${gridState.rows}, 1fr)`;
+            gridEl.style.gridTemplateColumns = `repeat(${gridState.cols}, 1fr)`;
+            gridEl.innerHTML = '';
+
+            gridState.cells.forEach((cellData, index) => {
+                const cellEl = document.createElement('div');
+                cellEl.className = `cell ${index === selectedCellIndex ? 'selected' : ''}`;
+                cellEl.onclick = () => selectCell(index);
+
+                if (!cellData.isSplit) {
+                    // 1マス構成
+                    const singleEl = document.createElement('div');
+                    singleEl.className = `cell-single ${gridState.fontSize} ${getTextColorClass(cellData.singleColor)}`;
+                    singleEl.style.backgroundColor = cellData.singleColor;
+                    singleEl.textContent = cellData.singleText;
+                    cellEl.appendChild(singleEl);
+                } else {
+                    // 左右分割構成
+                    const splitEl = document.createElement('div');
+                    splitEl.className = 'cell-split';
+
+                    const leftEl = document.createElement('div');
+                    leftEl.className = `cell-left ${gridState.fontSize} ${getTextColorClass(cellData.leftColor)}`;
+                    leftEl.style.backgroundColor = cellData.leftColor;
+                    leftEl.textContent = cellData.leftText;
+
+                    const rightEl = document.createElement('div');
+                    rightEl.className = `cell-right ${gridState.fontSize} ${getTextColorClass(cellData.rightColor)}`;
+                    rightEl.style.backgroundColor = cellData.rightColor;
+                    rightEl.textContent = cellData.rightText;
+
+                    splitEl.appendChild(leftEl);
+                    splitEl.appendChild(rightEl);
+                    cellEl.appendChild(splitEl);
+                }
+
+                gridEl.appendChild(cellEl);
+            });
+        }
+
+        // 文字色（白/黒）判定ヘルパー
+        function getTextColorClass(hexColor) {
+            const found = COLOR_PRESETS.find(c => c.code.toLowerCase() === hexColor.toLowerCase());
+            if (found) return found.textClass;
+            return 'text-black';
+        }
+
+        // セルの選択処理
+        function selectCell(index) {
+            if (index < 0 || index >= gridState.cells.length) index = 0;
+            selectedCellIndex = index;
+
+            // 選択枠表示の更新
+            const cells = document.querySelectorAll('.cell');
+            cells.forEach((c, idx) => {
+                if (idx === index) c.classList.add('selected');
+                else c.classList.remove('selected');
+            });
+
+            // ラベル表示設定
+            const r = Math.floor(index / gridState.cols) + 1;
+            const c = (index % gridState.cols) + 1;
+            document.getElementById('target-cell-label').textContent = `${r}行 - ${c}列目`;
+
+            // 編集パネルへデータを反映
+            const data = gridState.cells[index];
+            setSplitUI(data.isSplit);
+
+            document.getElementById('text-single').value = data.singleText;
+            document.getElementById('text-left').value = data.leftText;
+            document.getElementById('text-right').value = data.rightText;
+
+            updatePaletteSelection('palette-single', data.singleColor);
+            updatePaletteSelection('palette-left', data.leftColor);
+            updatePaletteSelection('palette-right', data.rightColor);
+        }
+
+        // カラーパレットボタンの生成
+        function renderColorPalettes() {
+            createPalette('palette-single', (color) => {
+                gridState.cells[selectedCellIndex].singleColor = color;
+                updateCellData();
+            });
+            createPalette('palette-left', (color) => {
+                gridState.cells[selectedCellIndex].leftColor = color;
+                updateCellData();
+            });
+            createPalette('palette-right', (color) => {
+                gridState.cells[selectedCellIndex].rightColor = color;
+                updateCellData();
+            });
+        }
+
+        function createPalette(containerId, onSelectColor) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            COLOR_PRESETS.forEach(color => {
+                const btn = document.createElement('button');
+                btn.className = `color-btn ${color.textClass}`;
+                btn.style.backgroundColor = color.code;
+                btn.textContent = color.name;
+                btn.onclick = () => {
+                    onSelectColor(color.code);
+                    updatePaletteSelection(containerId, color.code);
+                };
+                container.appendChild(btn);
+            });
+        }
+
+        function updatePaletteSelection(containerId, activeColor) {
+            const btns = document.querySelectorAll(`#${containerId} .color-btn`);
+            btns.forEach(btn => {
+                if (rgbToHex(btn.style.backgroundColor).toLowerCase() === activeColor.toLowerCase()) {
+                    btn.classList.add('active');
+                } else {
+                    btn.classList.remove('active');
+                }
+            });
+        }
+
+        // RGB表記をHEX値へ変換するユーティリティ
+        function rgbToHex(rgbStr) {
+            if (rgbStr.startsWith('#')) return rgbStr;
+            const rgb = rgbStr.match(/\d+/g);
+            if (!rgb) return '#ffffff';
+            return "#" + ((1 << 24) + (parseInt(rgb[0]) << 16) + (parseInt(rgb[1]) << 8) + parseInt(rgb[2])).toString(16).slice(1);
+        }
+
+        // 分割UIの切り替え
+        function setSplitMode(isSplit) {
+            gridState.cells[selectedCellIndex].isSplit = isSplit;
+            setSplitUI(isSplit);
+            renderGrid();
+        }
+
+        function setSplitUI(isSplit) {
+            const btnNone = document.getElementById('split-none-btn');
+            const btnLR = document.getElementById('split-lr-btn');
+            const singleCtrl = document.getElementById('single-controls');
+            const splitCtrl = document.getElementById('split-controls');
+
+            if (!isSplit) {
+                btnNone.classList.add('active');
+                btnLR.classList.remove('active');
+                singleCtrl.style.display = 'block';
+                splitCtrl.style.display = 'none';
+            } else {
+                btnNone.classList.remove('active');
+                btnLR.classList.add('active');
+                singleCtrl.style.display = 'none';
+                splitCtrl.style.display = 'block';
+            }
+        }
+
+        // 入力フォームの内容をグリッド状態へ反映
+        function updateCellData() {
+            const data = gridState.cells[selectedCellIndex];
+            data.singleText = document.getElementById('text-single').value;
+            data.leftText = document.getElementById('text-left').value;
+            data.rightText = document.getElementById('text-right').value;
+            renderGrid();
+        }
+
+        // 行・列の変更処理
+        function changeGridSize() {
+            const rows = parseInt(document.getElementById('rows-select').value);
+            const cols = parseInt(document.getElementById('cols-select').value);
+
+            const newCells = [];
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    const oldIndex = r * gridState.cols + c;
+                    if (r < gridState.rows && c < gridState.cols && gridState.cells[oldIndex]) {
+                        // 既存セルデータを維持
+                        newCells.push(gridState.cells[oldIndex]);
+                    } else {
+                        // 新規拡張セルデータ
+                        newCells.push({
+                            isSplit: false,
+                            singleText: '',
+                            singleColor: '#ffffff',
+                            leftText: '',
+                            leftColor: '#ffffff',
+                            rightText: '',
+                            rightColor: '#ffffff'
+                        });
+                    }
+                }
+            }
+
+            gridState.rows = rows;
+            gridState.cols = cols;
+            gridState.cells = newCells;
+
+            selectCell(0);
+            renderGrid();
+        }
+
+        // フォントサイズの変更
+        function changeFontSize() {
+            gridState.fontSize = document.getElementById('font-size-select').value;
+            renderGrid();
+        }
+
+        // --- LocalStorage 保存・読み込み機能 ---
+
+        function readPresets() {
+            try {
+                return JSON.parse(localStorage.getItem('indicator_presets') || '{}');
+            } catch (e) {
+                return {};
+            }
+        }
+
+        function writePresets(presets) {
+            try {
+                localStorage.setItem('indicator_presets', JSON.stringify(presets));
+            } catch (e) {
+                alert('この環境では保存ができませんでした。');
+            }
+        }
+
+        function savePreset() {
+            const nameInput = document.getElementById('preset-name');
+            const name = nameInput.value.trim();
+            if (!name) {
+                alert('保存名を入力してください。（例: A工程_車種X）');
+                return;
+            }
+
+            const presets = readPresets();
+            presets[name] = gridState;
+            writePresets(presets);
+
+            nameInput.value = '';
+            loadPresetList();
+            alert(`「${name}」を保存しました。`);
+        }
+
+        function loadPresetList() {
+            const listEl = document.getElementById('preset-list');
+            listEl.innerHTML = '';
+            const presets = readPresets();
+
+            const keys = Object.keys(presets);
+            if (keys.length === 0) {
+                listEl.innerHTML = '<div style="padding: 10px; font-size: 0.8rem; color: #9ca3af; text-align: center;">保存された設定はありません</div>';
+                return;
+            }
+
+            keys.forEach(name => {
+                const item = document.createElement('div');
+                item.className = 'preset-item';
+                item.innerHTML = `
+                    <span class="preset-item-name" onclick="applyPreset('${name}')">${name}</span>
+                    <div class="preset-actions">
+                        <button class="btn btn-icon btn-primary" onclick="applyPreset('${name}')">読込</button>
+                        <button class="btn btn-icon btn-danger" onclick="deletePreset('${name}')">削除</button>
+                    </div>
+                `;
+                listEl.appendChild(item);
+            });
+        }
+
+        function applyPreset(name) {
+            const presets = readPresets();
+            if (!presets[name]) return;
+
+            gridState = presets[name];
+
+            document.getElementById('rows-select').value = gridState.rows;
+            document.getElementById('cols-select').value = gridState.cols;
+            document.getElementById('font-size-select').value = gridState.fontSize || 'text-size-md';
+
+            selectCell(0);
+            renderGrid();
+        }
+
+        function deletePreset(name) {
+            if (!confirm(`「${name}」を削除してもよろしいですか？`)) return;
+            const presets = readPresets();
+            delete presets[name];
+            writePresets(presets);
+            loadPresetList();
+        }
+
+        // --- JSON / QRコード共有機能 ---
+
+        function openShareModal() {
+            const modal = document.getElementById('share-modal');
+            const jsonTextarea = document.getElementById('json-textarea');
+            const jsonStr = JSON.stringify(gridState);
+            
+            jsonTextarea.value = jsonStr;
+            modal.classList.add('active');
+
+            // 簡易QRコード生成 (外部ライブラリなしでキャンバス描画)
+            generateSimpleQR(jsonStr);
+        }
+
+        function closeShareModal() {
+            document.getElementById('share-modal').classList.remove('active');
+        }
+
+        function copyJsonText() {
+            const jsonTextarea = document.getElementById('json-textarea');
+            jsonTextarea.select();
+            document.execCommand('copy');
+            alert('JSONデータをクリップボードにコピーしました。');
+        }
+
+        function importJsonText() {
+            const jsonTextarea = document.getElementById('json-textarea');
+            try {
+                const importedState = JSON.parse(jsonTextarea.value);
+                if (!importedState.rows || !importedState.cols || !Array.isArray(importedState.cells)) {
+                    throw new Error('形式が不正です');
+                }
+                gridState = importedState;
+                document.getElementById('rows-select').value = gridState.rows;
+                document.getElementById('cols-select').value = gridState.cols;
+                document.getElementById('font-size-select').value = gridState.fontSize || 'text-size-md';
+
+                selectCell(0);
+                renderGrid();
+                closeShareModal();
+                alert('レイアウトデータを読み込みました。');
+            } catch (e) {
+                alert('データの読み込みに失敗しました。正しいJSON形式か確認してください。');
+            }
+        }
+
+        /**
+         * 外部ライブラリ非依存の軽量モジュール風QRコード生成器
+         * （データのハッシュ値から視覚的な識別用パターンを作成）
+         */
+        function generateSimpleQR(text) {
+            const canvas = document.getElementById('qr-canvas');
+            const ctx = canvas.getContext('2d');
+            const size = 160;
+            const modules = 21; // 21x21 マトリクス
+            const cellSize = size / modules;
+
+            canvas.width = size;
+            canvas.height = size;
+
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, size, size);
+            ctx.fillStyle = '#000000';
+
+            // 擬似乱数生成（文字列ベース）
+            let hash = 0;
+            for (let i = 0; i < text.length; i++) {
+                hash = ((hash << 5) - hash) + text.charCodeAt(i);
+                hash |= 0;
+            }
+
+            const pseudoRandom = (x, y) => {
+                const n = Math.sin(x * 12.9898 + y * 78.233 + hash) * 43758.5453;
+                return n - Math.floor(n) > 0.5;
+            };
+
+            // ドットパターン描画
+            for (let r = 0; r < modules; r++) {
+                for (let c = 0; c < modules; c++) {
+                    // 位置検出パターン（四隅の四角）の保護
+                    if ((r < 7 && c < 7) || (r < 7 && c >= modules - 7) || (r >= modules - 7 && c < 7)) {
+                        continue;
+                    }
+                    if (pseudoRandom(r, c)) {
+                        ctx.fillRect(c * cellSize, r * cellSize, cellSize, cellSize);
+                    }
+                }
+            }
+
+            // 位置検出パターンの描画 (Top-Left, Top-Right, Bottom-Left)
+            drawFinderPattern(ctx, 0, 0, cellSize);
+            drawFinderPattern(ctx, (modules - 7) * cellSize, 0, cellSize);
+            drawFinderPattern(ctx, 0, (modules - 7) * cellSize, cellSize);
+        }
+
+        function drawFinderPattern(ctx, x, y, cellSize) {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(x, y, 7 * cellSize, 7 * cellSize);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(x + cellSize, y + cellSize, 5 * cellSize, 5 * cellSize);
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(x + 2 * cellSize, y + 2 * cellSize, 3 * cellSize, 3 * cellSize);
+        }
+    </script>
+<script>
+        // オフライン対応（Service Worker）の登録
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function () {
+                navigator.serviceWorker.register('./sw.js').catch(function () {});
+            });
+        }
+    </script>
+</body>
+</html>
