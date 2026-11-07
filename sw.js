@@ -1,5 +1,5 @@
 // ===== 更新するときは、下の VERSION の数字を上げてから置き換える =====
-const VERSION = 'v1';
+const VERSION = 'v1.0.0';
 const CACHE_NAME = 'indicator-simulator-' + VERSION;
 const FILES = [
   './',
