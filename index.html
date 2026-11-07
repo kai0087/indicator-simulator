@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- 指示ビラ・レイアウトシミュレータ ver 1.0.0 / MIT License / 内蔵ライブラリの権利表記は THIRD_PARTY_LICENSES.md を参照 -->
+<!-- 指示ビラ・レイアウトシミュレータ ver 1.1.0 / MIT License / 内蔵ライブラリの権利表記は THIRD_PARTY_LICENSES.md を参照 -->
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -630,6 +630,42 @@
         }
         .share-check input { width: 20px; height: 20px; }
         #qr-canvas { width: 100%; max-width: 340px; height: auto; image-rendering: pixelated; }
+
+        /* 閲覧モード（QRを読み取って開いたとき：指示ビラだけを表示） */
+        .view-bar { display: none; }
+        body.view-mode .view-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #374151;
+        }
+        body.view-mode > header,
+        body.view-mode .grid-config-bar,
+        body.view-mode .control-panel { display: none !important; }
+        body.view-mode .app-container { grid-template-columns: 1fr; }
+        body.view-mode .cell { cursor: default; }
+        body.view-mode .cell.selected { outline: none; }
+        body.view-mode .tab-bar { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; }
+        .tab-btn.hidden { display: none; }
+
+        /* 作業名：クリアボタンと「他車型に反映」チェック */
+        .name-row { display: flex; gap: 6px; }
+        .name-row .input-text { flex: 1; min-width: 0; }
+        .name-row .btn { white-space: nowrap; }
+        .input-group .sync-check {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 8px 0 0;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #374151;
+        }
+        .sync-check input { width: 18px; height: 18px; }
     </style>
 </head>
 <body>
@@ -637,7 +673,7 @@
     <!-- ヘッダーバー -->
     <header class="no-print">
         <h1>
-            <span>📋</span> 指示ビラ・レイアウトシミュレータ <small style="font-size: 0.7rem; color: #6b7280; font-weight: normal;">ver 1.0</small>
+            <span>📋</span> 指示ビラ・レイアウトシミュレータ <small style="font-size: 0.7rem; color: #6b7280; font-weight: normal;">ver 1.1</small>
         </h1>
         <div class="header-actions">
             <button class="btn" onclick="openShareModal()">🔗 共有/QR</button>
@@ -651,6 +687,12 @@
         <button class="tab-btn" data-type="V6" onclick="switchTab('V6')">V6</button>
         <button class="tab-btn" data-type="GD" onclick="switchTab('GD')">GD</button>
     </nav>
+
+    <!-- 閲覧モードの案内バー（QRで受け取ったときだけ表示） -->
+    <div class="view-bar no-print">
+        <span>📋 受け取った指示ビラ（閲覧用）</span>
+        <button class="btn" onclick="exitViewMode()">✏️ 編集画面を開く</button>
+    </div>
 
     <!-- メインコンテンツ -->
     <div class="app-container">
@@ -699,7 +741,11 @@
                 <!-- 作業名（マス上部に表示） -->
                 <div class="input-group">
                     <label for="text-name">作業名（マス上部に表示）</label>
-                    <input type="text" id="text-name" class="input-text" placeholder="例: ボルト締付" oninput="updateCellData()">
+                    <div class="name-row">
+                        <input type="text" id="text-name" class="input-text" placeholder="例: ボルト締付" oninput="onNameInput()">
+                        <button type="button" class="btn" onclick="clearName()">✕ クリア</button>
+                    </div>
+                    <label class="sync-check"><input type="checkbox" id="name-sync"> 他の車型の同じ位置（行・列）にも反映する</label>
                 </div>
 
                 <!-- 分割切り替え -->
@@ -3279,6 +3325,7 @@ var qrcode = function() {
             setSplitUI(data.isSplit);
 
             document.getElementById('text-name').value = data.name || '';
+            document.getElementById('name-sync').checked = false;
             document.getElementById('text-single').value = data.singleText;
             document.getElementById('text-left').value = data.leftText;
             document.getElementById('text-right').value = data.rightText;
@@ -3373,6 +3420,33 @@ var qrcode = function() {
             data.leftText = document.getElementById('text-left').value;
             data.rightText = document.getElementById('text-right').value;
             renderGrid();
+        }
+
+        // --- 作業名：クリアと、他の車型への反映 ---
+        function onNameInput() {
+            updateCellData();
+            syncNameToOthers();
+        }
+
+        function clearName() {
+            document.getElementById('text-name').value = '';
+            onNameInput();
+        }
+
+        // チェックが入っているとき、他の車型の「同じ行・同じ列」のマスにも作業名を反映する
+        // （相手の行・列が足りないときは、その車型だけ何もしない）
+        function syncNameToOthers() {
+            if (!document.getElementById('name-sync').checked) return;
+            const name = gridState.cells[selectedCellIndex].name;
+            const r = Math.floor(selectedCellIndex / gridState.cols);
+            const c = selectedCellIndex % gridState.cols;
+            TYPES.forEach(t => {
+                if (t === activeType) return;
+                const sheet = project.sheets[t];
+                if (r < sheet.rows && c < sheet.cols) {
+                    sheet.cells[r * sheet.cols + c].name = name;
+                }
+            });
         }
 
         // --- 保存前の最終チェック（表示文字と背景色の食い違い・全車型） ---
@@ -3746,6 +3820,20 @@ var qrcode = function() {
             }
         }
 
+        // 閲覧モード：受け取った車型のタブだけを出し、指示ビラ以外の画面を隠す
+        function enterViewMode(types) {
+            document.body.classList.add('view-mode');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('hidden', !types.includes(b.dataset.type)));
+            switchTab(types[0]);
+        }
+
+        // 「編集画面を開く」：通常の画面に戻す（読み取ったデータはそのまま編集できる）
+        function exitViewMode() {
+            document.body.classList.remove('view-mode');
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('hidden'));
+            history.replaceState(null, '', location.pathname + location.search);
+        }
+
         // QRを読み取って開いたとき、アドレスの後ろのデータからレイアウトを復元する
         async function loadFromUrlHash() {
             if (!location.hash.startsWith('#d=')) return;
@@ -3765,9 +3853,7 @@ var qrcode = function() {
                 });
                 if (got.length === 0) throw new Error('empty');
 
-                switchTab(got[0]);
-                history.replaceState(null, '', location.pathname + location.search);
-                alert(`受け取ったレイアウト（${got.join('・')}）を表示しました。残す場合は、右側の「現在の配置を保存」を押してください。`);
+                enterViewMode(got);
             } catch (e) {
                 alert('QRコードのデータを読み込めませんでした。アプリが古い可能性があります。最新のアプリで開き直してください。');
             }
