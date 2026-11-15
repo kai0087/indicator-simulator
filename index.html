@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- 指示ビラ・レイアウトシミュレータ ver 1.1.0 / MIT License / 内蔵ライブラリの権利表記は THIRD_PARTY_LICENSES.md を参照 -->
+<!-- 指示ビラ・レイアウトシミュレータ ver 1.4.0 / MIT License / 内蔵ライブラリの権利表記は THIRD_PARTY_LICENSES.md を参照 -->
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -666,6 +666,61 @@
             color: #374151;
         }
         .sync-check input { width: 18px; height: 18px; }
+
+        /* 行ごとの列数（行単位でマス数を変えられる） */
+        .sheet-row { display: grid; gap: 2px; min-height: 0; min-width: 0; }
+        .row-cols-editor { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 100%; }
+        .row-col-item { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; font-weight: bold; }
+        .row-col-item select { padding: 3px 6px; font-size: 0.9rem; }
+        /* 背景色を印刷しても消えないようにする（黒背景＋白文字が読めなくなるのを防ぐ） */
+        .cell-single, .cell-left, .cell-right { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        .view-title-main { font-size: 1.1rem; }
+        .view-title-sub { font-size: 0.75rem; color: #6b7280; font-weight: normal; }
+
+
+        /* 指示記号の文字サイズ「自動」：マスの約60%（--fit）に収まる大きさにする */
+        .cell-body { position: relative; }
+        .cell-single, .cell-split { position: absolute; inset: 0; width: auto; height: auto; }
+        .cell-single, .cell-left, .cell-right { container-type: size; }
+        .sym { display: block; line-height: 1; white-space: nowrap; }
+        .text-size-auto { font-size: 1.4rem; }
+        @supports (width: 1cqw) {
+            .text-size-auto .sym {
+                font-size: min(calc(var(--fit, 0.6) * 100cqh), calc(var(--fit, 0.6) * 100cqw / var(--em, 1)));
+            }
+        }
+
+        /* 色の設定画面 */
+        .color-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+        .color-row input[type="color"] { width: 46px; height: 38px; padding: 0; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; }
+        .color-row .input-text { flex: 1; min-width: 0; font-size: 1rem; }
+
+        /* 行ごとに独立した枠（全体の外枠は無し）。列数が少ない行は、その分だけ短い枠になる */
+        .sheet-grid { background: transparent; border: none; padding: 0; gap: 8px; box-shadow: none; }
+        .sheet-row {
+            --n: 1; --maxc: 1;
+            background: var(--cell-border);
+            border: 3px solid var(--cell-border);
+            padding: 2px;
+            box-sizing: border-box;
+            /* マス1つの幅を、どの行でもそろえる（枠の太さと隙間を引いて計算） */
+            width: calc(var(--n) * (100% - 10px - (var(--maxc) - 1) * 2px) / var(--maxc) + (var(--n) - 1) * 2px + 10px);
+        }
+
+        /* 選択中のマス：4辺を黒の太線で囲む（暗い背景でも見えるよう、内側に細い白線を添える） */
+        .cell.selected { outline: none; }
+        .cell.selected::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border: 4px solid #000000;
+            box-shadow: inset 0 0 0 2px #ffffff;
+            box-sizing: border-box;
+            pointer-events: none;
+            z-index: 20;
+        }
+        body.view-mode .cell.selected::after { display: none; }
+        @media print { .cell.selected::after { display: none; } }
     </style>
 </head>
 <body>
@@ -673,11 +728,13 @@
     <!-- ヘッダーバー -->
     <header class="no-print">
         <h1>
-            <span>📋</span> 指示ビラ・レイアウトシミュレータ <small style="font-size: 0.7rem; color: #6b7280; font-weight: normal;">ver 1.1</small>
+            <span>📋</span> 指示ビラ・レイアウトシミュレータ <small style="font-size: 0.7rem; color: #6b7280; font-weight: normal;">ver 1.4</small>
         </h1>
         <div class="header-actions">
             <button class="btn" onclick="openShareModal()">🔗 共有/QR</button>
             <button class="btn" onclick="window.print()">🖨️ 印刷/PDF</button>
+            <button class="btn" onclick="openColorModal()">🎨 色の設定</button>
+            <button class="btn btn-danger" onclick="allClear()">🗑️ オールクリア</button>
         </div>
     </header>
 
@@ -690,7 +747,7 @@
 
     <!-- 閲覧モードの案内バー（QRで受け取ったときだけ表示） -->
     <div class="view-bar no-print">
-        <span>📋 受け取った指示ビラ（閲覧用）</span>
+        <div><div id="view-process" class="view-title-main">受け取った指示ビラ</div><div class="view-title-sub">閲覧用</div></div>
         <button class="btn" onclick="exitViewMode()">✏️ 編集画面を開く</button>
     </div>
 
@@ -702,24 +759,17 @@
             <div class="grid-config-bar no-print">
                 <div class="select-group">
                     <label for="rows-select">行 (縦):</label>
-                    <select id="rows-select" onchange="changeGridSize()">
+                    <select id="rows-select" onchange="changeRows()">
                         <!-- 1~10 -->
                     </select>
                 </div>
                 <div class="select-group">
-                    <label for="cols-select">列 (横):</label>
-                    <select id="cols-select" onchange="changeGridSize()">
+                    <label for="cols-select">列 (全行まとめて):</label>
+                    <select id="cols-select" onchange="changeAllCols()">
                         <!-- 1~10 -->
                     </select>
                 </div>
-                <div class="select-group">
-                    <label for="font-size-select">文字サイズ:</label>
-                    <select id="font-size-select" onchange="changeFontSize()">
-                        <option value="text-size-sm">小</option>
-                        <option value="text-size-md" selected>中</option>
-                        <option value="text-size-lg">大</option>
-                    </select>
-                </div>
+                <div id="row-cols-editor" class="row-cols-editor"></div>
             </div>
 
             <!-- 指示ビラ本体（印刷対象） -->
@@ -731,6 +781,14 @@
         <!-- 右側：編集・設定パネル -->
         <div class="control-panel no-print">
             
+            <!-- 工程名 -->
+            <div class="panel-section">
+                <div class="section-title">工程名</div>
+                <div class="input-group">
+                    <input type="text" id="process-name" class="input-text" placeholder="例: A工程 ボルト締付" oninput="onProcessNameInput()">
+                </div>
+            </div>
+
             <!-- マス編集セクション -->
             <div class="panel-section">
                 <div class="section-title">
@@ -760,12 +818,16 @@
                 <!-- 単一マス用コントロール -->
                 <div id="single-controls">
                     <div class="input-group">
-                        <label for="text-single">表示文字 (最大2文字)</label>
-                        <input type="text" id="text-single" class="input-text" maxlength="2" placeholder="例: A1" oninput="updateCellData()">
+                        <label for="text-single">指示記号 (最大2文字)</label>
+                        <div class="name-row"><input type="text" id="text-single" class="input-text" maxlength="2" placeholder="例: A1" oninput="updateCellData()"><button type="button" class="btn" onclick="clearSymbol('single')">✕ クリア</button></div>
                     </div>
                     <div class="input-group">
                         <label>背景色</label>
                         <div id="palette-single" class="color-palette"></div>
+                    </div>
+                    <div class="input-group">
+                        <label>指示記号の色</label>
+                        <div id="palette-single-text" class="color-palette"></div>
                     </div>
                 </div>
 
@@ -773,24 +835,32 @@
                 <div id="split-controls" style="display: none;">
                     <div style="border-left: 3px solid #3b82f6; padding-left: 8px; margin-bottom: 12px;">
                         <div class="input-group">
-                            <label for="text-left">左側 文字 (最大2文字)</label>
-                            <input type="text" id="text-left" class="input-text" maxlength="2" placeholder="左" oninput="updateCellData()">
+                            <label for="text-left">左側 指示記号 (最大2文字)</label>
+                            <div class="name-row"><input type="text" id="text-left" class="input-text" maxlength="2" placeholder="左" oninput="updateCellData()"><button type="button" class="btn" onclick="clearSymbol('left')">✕ クリア</button></div>
                         </div>
                         <div class="input-group">
                             <label>左側 背景色</label>
                             <div id="palette-left" class="color-palette"></div>
                         </div>
+                    <div class="input-group">
+                        <label>左側 指示記号の色</label>
+                        <div id="palette-left-text" class="color-palette"></div>
+                    </div>
                     </div>
 
                     <div style="border-left: 3px solid #10b981; padding-left: 8px;">
                         <div class="input-group">
-                            <label for="text-right">右側 文字 (最大2文字)</label>
-                            <input type="text" id="text-right" class="input-text" maxlength="2" placeholder="右" oninput="updateCellData()">
+                            <label for="text-right">右側 指示記号 (最大2文字)</label>
+                            <div class="name-row"><input type="text" id="text-right" class="input-text" maxlength="2" placeholder="右" oninput="updateCellData()"><button type="button" class="btn" onclick="clearSymbol('right')">✕ クリア</button></div>
                         </div>
                         <div class="input-group">
                             <label>右側 背景色</label>
                             <div id="palette-right" class="color-palette"></div>
                         </div>
+                    <div class="input-group">
+                        <label>右側 指示記号の色</label>
+                        <div id="palette-right-text" class="color-palette"></div>
+                    </div>
                     </div>
                 </div>
             </div>
@@ -809,6 +879,42 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- 色の設定モーダル（背景色の一覧／指示記号の色の一覧） -->
+    <div id="color-modal" class="modal-overlay no-print">
+        <div class="modal-body" style="max-height: 90vh; overflow-y: auto;">
+            <div class="modal-title">🎨 色の設定</div>
+            <div style="font-size: 0.85rem; line-height: 1.5; margin-bottom: 10px;">
+                変更はすぐに反映されます。<br>
+                ・背景色の名前を「アカ」など指示記号の入力と同じにすると、保存前の確認で、色の食い違いを調べられます。<br>
+                ・色を変えたり削除したりしても、<b>すでに塗ったマスの色は変わりません</b>。
+            </div>
+            <div class="section-title">背景色の一覧</div>
+            <div id="color-list-bg"></div>
+            <button class="btn" style="margin-bottom: 14px;" onclick="addColor('bg')">＋ 背景色を追加</button>
+            <div class="section-title">指示記号の色の一覧（「自動」は常に使えます）</div>
+            <div id="color-list-text"></div>
+            <button class="btn" style="margin-bottom: 14px;" onclick="addColor('text')">＋ 指示記号の色を追加</button>
+            <div style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: space-between;">
+                <button class="btn" onclick="resetColors()">最初の色に戻す</button>
+                <button class="btn btn-primary" onclick="closeColorModal()">閉じる</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 保存名の入力モーダル（保存名・工程名がどちらも空のとき） -->
+    <div id="save-name-modal" class="modal-overlay no-print">
+        <div class="modal-body">
+            <div class="modal-title">💾 保存名を入力してください</div>
+            <div style="font-size: 0.9rem; margin-bottom: 8px;">保存名と工程名が、どちらも空です。保存する名前を入力してください。</div>
+            <input type="text" id="save-name-input" class="input-text" placeholder="例: A工程_ボルト締付">
+            <div id="save-name-msg" style="color: #dc2626; font-size: 0.85rem; min-height: 1.2em; margin: 4px 0 8px;"></div>
+            <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                <button class="btn" onclick="closeSaveNameModal(false)">キャンセル</button>
+                <button class="btn btn-primary" onclick="closeSaveNameModal(true)">保存する</button>
+            </div>
+        </div>
     </div>
 
     <!-- 保存前の最終確認モーダル（文字と背景色の食い違い） -->
@@ -3145,22 +3251,56 @@ var qrcode = function() {
 
     <script>
         // 定数定義：カラーパレット設定
-        const COLOR_PRESETS = [
-            { name: 'シロ', code: '#ffffff', textClass: 'text-black' },
-            { name: 'アカ', code: '#ef4444', textClass: 'text-white' },
-            { name: 'アオ', code: '#3b82f6', textClass: 'text-white' },
-            { name: 'ミド', code: '#10b981', textClass: 'text-white' },
-            { name: 'キ', code: '#facc15', textClass: 'text-black' },
-            { name: 'ダイダイ', code: '#f97316', textClass: 'text-white' },
-            { name: 'ムラサキ', code: '#a855f7', textClass: 'text-white' },
-            { name: 'モモ', code: '#ec4899', textClass: 'text-white' },
-            { name: 'グレー', code: '#6b7280', textClass: 'text-white' },
-            { name: 'クロ', code: '#111827', textClass: 'text-white' }
+        // 色の一覧の「最初の色」。アプリの「色の設定」で、追加・削除・変更ができる（端末に保存される）
+        const DEFAULT_BG_COLORS = [
+            { name: 'シロ', code: '#ffffff' },
+            { name: 'クロ', code: '#111827' },
+            { name: 'アカ', code: '#ef4444' },
+            { name: 'アオ', code: '#3b82f6' },
+            { name: 'ミド', code: '#10b981' }
         ];
+        const DEFAULT_TEXT_COLORS = [ // 「自動」は、これとは別に常に先頭に出る
+            { name: 'アカ', code: '#ef4444' },
+            { name: 'アオ', code: '#3b82f6' },
+            { name: 'ミド', code: '#10b981' },
+            { name: 'キイ', code: '#facc15' }
+        ];
+        // QR形式1・2（古いQR）が使っていた色番号の表。読み込み専用で、変更しない
+        const LEGACY_COLORS = ['#ffffff', '#ef4444', '#3b82f6', '#10b981', '#facc15', '#f97316', '#a855f7', '#ec4899', '#6b7280', '#111827'];
+        const COLOR_STORE_KEY = 'indicator_colors_v2'; // v1.3.0までの保存（indicator_colors）は使わない
+        const MAX_COLORS = 20;
+        const MAX_ROWS = 3;  // 行の選択肢の上限
+        const MAX_COLS = 5;  // 列の選択肢の上限
+        const AUTO_FIT_RATIO = 60; // 指示記号の文字サイズ：マスの何%に収めるか
+
+        const cloneColors = list => list.map(c => ({ name: c.name, code: c.code }));
+
+        function sanitizeColors(a) {
+            if (!Array.isArray(a)) return null;
+            const ok = a.filter(c => c && /^#[0-9a-f]{6}$/i.test(c.code))
+                .map(c => ({ name: String(c.name || '').slice(0, 6), code: c.code.toLowerCase() }));
+            return ok.length ? ok : null;
+        }
+
+        function loadColors() {
+            try {
+                const o = JSON.parse(localStorage.getItem(COLOR_STORE_KEY) || 'null');
+                if (o) return { bg: sanitizeColors(o.bg) || cloneColors(DEFAULT_BG_COLORS), text: sanitizeColors(o.text) || cloneColors(DEFAULT_TEXT_COLORS) };
+            } catch (e) {}
+            return { bg: cloneColors(DEFAULT_BG_COLORS), text: cloneColors(DEFAULT_TEXT_COLORS) };
+        }
+
+        function saveColors() {
+            try { localStorage.setItem(COLOR_STORE_KEY, JSON.stringify({ bg: COLOR_PRESETS, text: TEXT_COLORS })); } catch (e) {}
+        }
+
+        const savedColors = loadColors();
+        const COLOR_PRESETS = savedColors.bg;   // 背景色の一覧
+        const TEXT_COLORS = savedColors.text;   // 指示記号の色の一覧
 
         // 車型と、1工程ぶんのデータ（L4・V6・GDの3枚）
         const TYPES = ['L4', 'V6', 'GD'];
-        const DEFAULT_SIZE = { L4: [2, 3], V6: [2, 3], GD: [2, 3] }; // [行, 列] 最初の値。いつでも変更可
+        const DEFAULT_ROWCOLS = { L4: [3, 3], V6: [3, 3], GD: [3, 3] }; // 行ごとの列数（[3, 3]＝2行3列）。最初の値で、いつでも変更可
         let project = null;      // 1工程ぶん
         let activeType = 'L4';   // 表示中の車型
         let gridState = null;    // 表示中の1枚（project.sheets[activeType]）
@@ -3176,26 +3316,41 @@ var qrcode = function() {
             renderColorPalettes();
             selectCell(0);
             loadPresetList();
+            syncProcessNameInput();
             loadFromUrlHash();
         };
 
         // セレクトボックスの選択肢（1~10）を動的生成
+        // 行は1〜MAX_ROWS、列（全行まとめて）は「行ごと」と1〜MAX_COLS
         function initSelectOptions() {
             const rowsSelect = document.getElementById('rows-select');
             const colsSelect = document.getElementById('cols-select');
+            const blank = document.createElement('option');
+            blank.value = '';
+            blank.textContent = '行ごと';
+            colsSelect.appendChild(blank);
 
-            for (let i = 1; i <= 10; i++) {
+            for (let i = 1; i <= MAX_ROWS; i++) {
                 const optR = document.createElement('option');
                 optR.value = i;
                 optR.textContent = `${i} 行`;
-                if (i === 2) optR.selected = true;
                 rowsSelect.appendChild(optR);
-
+            }
+            for (let i = 1; i <= MAX_COLS; i++) {
                 const optC = document.createElement('option');
                 optC.value = i;
                 optC.textContent = `${i} 列`;
-                if (i === 4) optC.selected = true;
                 colsSelect.appendChild(optC);
+            }
+        }
+
+        // 上限を超える古いデータを開いたときも、その値が選択欄に出るようにする
+        function ensureOption(sel, v, label) {
+            if (![...sel.options].some(o => o.value === String(v))) {
+                const o = document.createElement('option');
+                o.value = v;
+                o.textContent = label;
+                sel.appendChild(o);
             }
         }
 
@@ -3205,29 +3360,164 @@ var qrcode = function() {
                 isSplit: false,
                 singleText: '',
                 singleColor: '#ffffff',
+                singleTextColor: '',
                 leftText: '',
                 leftColor: '#ffffff',
+                leftTextColor: '',
                 rightText: '',
-                rightColor: '#ffffff'
+                rightColor: '#ffffff',
+                rightTextColor: ''
             };
         }
 
-        function newSheet(rows, cols) {
-            return { rows: rows, cols: cols, fontSize: 'text-size-md', cells: Array.from({ length: rows * cols }, newCell) };
+        // rowCols：行ごとの列数（例 [3, 1]＝1行目3列・2行目1列）
+        function newSheet(rowCols) {
+            const total = rowCols.reduce((a, b) => a + b, 0);
+            return { rows: rowCols.length, rowCols: rowCols.slice(), fontSize: 'text-size-auto', cells: Array.from({ length: total }, newCell) };
         }
 
         function createProject() {
             const sheets = {};
-            TYPES.forEach(t => { sheets[t] = newSheet(DEFAULT_SIZE[t][0], DEFAULT_SIZE[t][1]); });
-            return { sheets: sheets };
+            TYPES.forEach(t => { sheets[t] = newSheet(DEFAULT_ROWCOLS[t]); });
+            return { processName: '', sheets: sheets };
+        }
+
+        // 旧形式（行数×列数が全行同じ）のシートを、行ごとの列数の形に直す
+        function normalizeSheet(sheet) {
+            if (!Array.isArray(sheet.rowCols)) sheet.rowCols = Array.from({ length: sheet.rows }, () => sheet.cols);
+            sheet.rows = sheet.rowCols.length;
+            sheet.fontSize = 'text-size-auto'; // 文字サイズは「自動」だけ（旧データの小・中・大も自動にする）
+            delete sheet.cols;
+            return sheet;
+        }
+
+        function normalizeProject(proj) {
+            proj.processName = String(proj.processName || '');
+            TYPES.forEach(t => { proj.sheets[t] = proj.sheets[t] ? normalizeSheet(proj.sheets[t]) : newSheet(DEFAULT_ROWCOLS[t]); });
+        }
+
+        // マス番号 ⇔ （行, 列）の変換（どちらも0始まり）
+        function rcOf(sheet, index) {
+            let r = 0;
+            while (r < sheet.rowCols.length - 1 && index >= sheet.rowCols[r]) { index -= sheet.rowCols[r]; r++; }
+            return { r: r, c: index };
+        }
+
+        function indexOfRC(sheet, r, c) {
+            if (r >= sheet.rows || c >= sheet.rowCols[r]) return -1;
+            let idx = 0;
+            for (let i = 0; i < r; i++) idx += sheet.rowCols[i];
+            return idx + c;
+        }
+
+        // 背景が黒のときは、文字を白にする
+        // 指示記号の文字色：指定があればその色。「自動」のときは、背景がとても暗い色なら白、それ以外は標準の暗い色
+        function textColorFor(bg, textColor) {
+            if (textColor) return textColor;
+            return luminance(bg) < 0.15 ? '#ffffff' : '';
+        }
+
+        // 文字の横幅の目安（全角＝1、半角英数＝0.65）。「自動」の文字サイズの計算に使う
+        function emWidth(text) {
+            let w = 0;
+            for (const ch of String(text)) {
+                const c = ch.codePointAt(0);
+                w += c <= 0x7e ? 0.65 : (c >= 0xff61 && c <= 0xff9f ? 0.5 : 1);
+            }
+            return Math.max(w, 0.65);
+        }
+
+        function makeSym(text) {
+            const span = document.createElement('span');
+            span.className = 'sym';
+            span.style.setProperty('--em', emWidth(text));
+            span.textContent = text;
+            return span;
+        }
+
+        // --- 工程名・オールクリア・指示記号のクリア ---
+        function onProcessNameInput() {
+            project.processName = document.getElementById('process-name').value;
+        }
+
+        function syncProcessNameInput() {
+            document.getElementById('process-name').value = project.processName || '';
+        }
+
+        // 指示記号のクリア：文字・背景色・指示記号の色を、最初の状態に戻す
+        function clearSymbol(field) {
+            const map = {
+                single: ['text-single', 'singleColor', 'singleTextColor'],
+                left: ['text-left', 'leftColor', 'leftTextColor'],
+                right: ['text-right', 'rightColor', 'rightTextColor']
+            };
+            const [inputId, bgKey, tcKey] = map[field];
+            document.getElementById(inputId).value = '';
+            const cell = gridState.cells[selectedCellIndex];
+            cell[bgKey] = '#ffffff';
+            cell[tcKey] = '';
+            updateCellData();
+            syncPalettes(cell);
+        }
+
+        // 全タブの、工程名・作業名・指示記号を消す（背景色とマスの数は、そのまま）
+        // 全タブの、工程名・作業名・指示記号（文字・背景色・指示記号の色）を消す。マスの数と分割は、そのまま
+        function allClear() {
+            if (!confirm('全てのタブ（L4・V6・GD）の、工程名・作業名・指示記号（背景色を含む）をすべて消します。よろしいですか？\n（マスの数と、左右の分割は、そのままです）')) return;
+            project.processName = '';
+            TYPES.forEach(t => project.sheets[t].cells.forEach(c => {
+                c.name = '';
+                c.singleText = '';
+                c.singleColor = '#ffffff';
+                c.singleTextColor = '';
+                c.leftText = '';
+                c.leftColor = '#ffffff';
+                c.leftTextColor = '';
+                c.rightText = '';
+                c.rightColor = '#ffffff';
+                c.rightTextColor = '';
+            }));
+            syncProcessNameInput();
+            renderGrid();
+            selectCell(selectedCellIndex);
         }
 
         // 行・列・文字サイズの選択欄を、表示中の1枚に合わせる
+        // 行・列・文字サイズの選択欄を、表示中の1枚に合わせる
+        // 行・列の選択欄を、表示中の1枚に合わせる
         function syncControls() {
-            document.getElementById('rows-select').value = gridState.rows;
-            document.getElementById('cols-select').value = gridState.cols;
-            document.getElementById('font-size-select').value = gridState.fontSize || 'text-size-md';
+            const rowsSel = document.getElementById('rows-select');
+            const colsSel = document.getElementById('cols-select');
+            ensureOption(rowsSel, gridState.rows, `${gridState.rows} 行`);
+            rowsSel.value = gridState.rows;
+            const same = gridState.rowCols.every(n => n === gridState.rowCols[0]);
+            if (same) ensureOption(colsSel, gridState.rowCols[0], `${gridState.rowCols[0]} 列`);
+            colsSel.value = same ? gridState.rowCols[0] : '';
+            renderRowColsEditor();
         }
+
+        // 「1行目 3列」「2行目 1列」…の、行ごとの列数の選択欄
+        function renderRowColsEditor() {
+            const box = document.getElementById('row-cols-editor');
+            box.innerHTML = '';
+            gridState.rowCols.forEach((n, r) => {
+                const label = document.createElement('label');
+                label.className = 'row-col-item';
+                label.appendChild(document.createTextNode(`${r + 1}行目`));
+                const sel = document.createElement('select');
+                for (let i = 1; i <= Math.max(MAX_COLS, n); i++) {
+                    const o = document.createElement('option');
+                    o.value = i;
+                    o.textContent = `${i} 列`;
+                    if (i === n) o.selected = true;
+                    sel.appendChild(o);
+                }
+                sel.onchange = () => changeRowCols(r, parseInt(sel.value));
+                label.appendChild(sel);
+                box.appendChild(label);
+            });
+        }
+
 
         // 車型タブの切り替え
         function switchTab(type) {
@@ -3243,64 +3533,82 @@ var qrcode = function() {
         // グリッド描画
         function renderGrid() {
             const gridEl = document.getElementById('sheet-grid');
+            const maxCols = Math.max(...gridState.rowCols);
             gridEl.style.gridTemplateRows = `repeat(${gridState.rows}, 1fr)`;
-            gridEl.style.gridTemplateColumns = `repeat(${gridState.cols}, 1fr)`;
+            gridEl.style.gridTemplateColumns = '1fr';
+            gridEl.style.setProperty('--fit', AUTO_FIT_RATIO / 100);
             gridEl.classList.toggle('single-row', gridState.rows === 1);
             gridEl.innerHTML = '';
 
-            gridState.cells.forEach((cellData, index) => {
-                const cellEl = document.createElement('div');
-                cellEl.className = `cell ${index === selectedCellIndex ? 'selected' : ''}`;
-                cellEl.onclick = () => selectCell(index);
-
-                // 上部1/5：作業名、下部4/5：文字と背景色
-                const nameEl = document.createElement('div');
-                nameEl.className = 'cell-name';
-                const nameTextEl = document.createElement('span');
-                nameTextEl.className = 'cell-name-text';
-                nameTextEl.textContent = cellData.name || '';
-                nameEl.appendChild(nameTextEl);
-                const bodyEl = document.createElement('div');
-                bodyEl.className = 'cell-body';
-
-                if (!cellData.isSplit) {
-                    // 1マス構成
-                    const singleEl = document.createElement('div');
-                    singleEl.className = `cell-single ${gridState.fontSize} ${getTextColorClass(cellData.singleColor)}`;
-                    singleEl.style.backgroundColor = cellData.singleColor;
-                    singleEl.textContent = cellData.singleText;
-                    bodyEl.appendChild(singleEl);
-                } else {
-                    // 左右分割構成
-                    const splitEl = document.createElement('div');
-                    splitEl.className = 'cell-split';
-
-                    const leftEl = document.createElement('div');
-                    leftEl.className = `cell-left ${gridState.fontSize} ${getTextColorClass(cellData.leftColor)}`;
-                    leftEl.style.backgroundColor = cellData.leftColor;
-                    leftEl.textContent = cellData.leftText;
-
-                    const rightEl = document.createElement('div');
-                    rightEl.className = `cell-right ${gridState.fontSize} ${getTextColorClass(cellData.rightColor)}`;
-                    rightEl.style.backgroundColor = cellData.rightColor;
-                    rightEl.textContent = cellData.rightText;
-
-                    splitEl.appendChild(leftEl);
-                    splitEl.appendChild(rightEl);
-                    bodyEl.appendChild(splitEl);
+            let index = 0;
+            gridState.rowCols.forEach(n => {
+                // 行ごとに、独自の枠を持つ。幅は「その行の列数 ÷ 最大列数」で、マス1つの幅は全行で同じ
+                const rowEl = document.createElement('div');
+                rowEl.className = 'sheet-row';
+                rowEl.style.setProperty('--n', n);
+                rowEl.style.setProperty('--maxc', maxCols);
+                rowEl.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+                for (let c = 0; c < n; c++, index++) {
+                    rowEl.appendChild(buildCell(gridState.cells[index], index));
                 }
-
-                cellEl.appendChild(nameEl);
-                cellEl.appendChild(bodyEl);
-                gridEl.appendChild(cellEl);
+                gridEl.appendChild(rowEl);
             });
+        }
+
+        function buildCell(cellData, index) {
+            const cellEl = document.createElement('div');
+            cellEl.className = `cell ${index === selectedCellIndex ? 'selected' : ''}`;
+            cellEl.onclick = () => selectCell(index);
+
+            // 上部1/5：作業名、下部4/5：指示記号と背景色
+            const nameEl = document.createElement('div');
+            nameEl.className = 'cell-name';
+            const nameTextEl = document.createElement('span');
+            nameTextEl.className = 'cell-name-text';
+            nameTextEl.textContent = cellData.name || '';
+            nameEl.appendChild(nameTextEl);
+            const bodyEl = document.createElement('div');
+            bodyEl.className = 'cell-body';
+
+            // 背景色・指示記号の文字・文字色を設定した1区画を作る
+            const makeBox = (cls, text, bg, textColor) => {
+                const box = document.createElement('div');
+                box.className = `${cls} ${gridState.fontSize} ${getTextColorClass(bg)}`;
+                box.style.backgroundColor = bg;
+                box.style.color = textColorFor(bg, textColor);
+                box.appendChild(makeSym(text));
+                return box;
+            };
+
+            if (!cellData.isSplit) {
+                bodyEl.appendChild(makeBox('cell-single', cellData.singleText, cellData.singleColor, cellData.singleTextColor));
+            } else {
+                const splitEl = document.createElement('div');
+                splitEl.className = 'cell-split';
+                splitEl.appendChild(makeBox('cell-left', cellData.leftText, cellData.leftColor, cellData.leftTextColor));
+                splitEl.appendChild(makeBox('cell-right', cellData.rightText, cellData.rightColor, cellData.rightTextColor));
+                bodyEl.appendChild(splitEl);
+            }
+
+            cellEl.appendChild(nameEl);
+            cellEl.appendChild(bodyEl);
+            return cellEl;
         }
 
         // 文字色（白/黒）判定ヘルパー
         function getTextColorClass(hexColor) {
-            const found = COLOR_PRESETS.find(c => c.code.toLowerCase() === hexColor.toLowerCase());
-            if (found) return found.textClass;
-            return 'text-black';
+            return luminance(hexColor) < 0.4 ? 'text-white' : 'text-black';
+        }
+
+        // 色の明るさ（0＝真っ暗〜1＝真っ白）
+        function luminance(hex) {
+            const m = /^#?([0-9a-f]{6})$/i.exec(String(hex));
+            if (!m) return 1;
+            const v = [0, 2, 4].map(k => {
+                const c = parseInt(m[1].substr(k, 2), 16) / 255;
+                return c <= 0.03928 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+            });
+            return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
         }
 
         // セルの選択処理
@@ -3316,9 +3624,8 @@ var qrcode = function() {
             });
 
             // ラベル表示設定
-            const r = Math.floor(index / gridState.cols) + 1;
-            const c = (index % gridState.cols) + 1;
-            document.getElementById('target-cell-label').textContent = `${r}行 - ${c}列目`;
+            const rc = rcOf(gridState, index);
+            document.getElementById('target-cell-label').textContent = `${rc.r + 1}行 - ${rc.c + 1}列目`;
 
             // 編集パネルへデータを反映
             const data = gridState.cells[index];
@@ -3330,51 +3637,143 @@ var qrcode = function() {
             document.getElementById('text-left').value = data.leftText;
             document.getElementById('text-right').value = data.rightText;
 
-            updatePaletteSelection('palette-single', data.singleColor);
-            updatePaletteSelection('palette-left', data.leftColor);
-            updatePaletteSelection('palette-right', data.rightColor);
+            syncPalettes(data);
         }
 
         // カラーパレットボタンの生成
         function renderColorPalettes() {
-            createPalette('palette-single', (color) => {
-                gridState.cells[selectedCellIndex].singleColor = color;
+            const setter = key => color => {
+                gridState.cells[selectedCellIndex][key] = color;
                 updateCellData();
-            });
-            createPalette('palette-left', (color) => {
-                gridState.cells[selectedCellIndex].leftColor = color;
-                updateCellData();
-            });
-            createPalette('palette-right', (color) => {
-                gridState.cells[selectedCellIndex].rightColor = color;
-                updateCellData();
+            };
+            createPalette('palette-single', setter('singleColor'), COLOR_PRESETS);
+            createPalette('palette-left', setter('leftColor'), COLOR_PRESETS);
+            createPalette('palette-right', setter('rightColor'), COLOR_PRESETS);
+            createPalette('palette-single-text', setter('singleTextColor'), TEXT_COLORS, true);
+            createPalette('palette-left-text', setter('leftTextColor'), TEXT_COLORS, true);
+            createPalette('palette-right-text', setter('rightTextColor'), TEXT_COLORS, true);
+        }
+
+        // 選んでいるマスの色を、色ボタンの選択状態に反映する
+        function syncPalettes(data) {
+            updatePaletteSelection('palette-single', data.singleColor);
+            updatePaletteSelection('palette-left', data.leftColor);
+            updatePaletteSelection('palette-right', data.rightColor);
+            updatePaletteSelection('palette-single-text', data.singleTextColor || '');
+            updatePaletteSelection('palette-left-text', data.leftTextColor || '');
+            updatePaletteSelection('palette-right-text', data.rightTextColor || '');
+        }
+
+        // --- 色の設定（色の追加・削除・変更） ---
+        function refreshPalettes() {
+            renderColorPalettes();
+            syncPalettes(gridState.cells[selectedCellIndex]);
+        }
+
+        function openColorModal() {
+            renderColorList();
+            document.getElementById('color-modal').classList.add('active');
+        }
+
+        function closeColorModal() {
+            document.getElementById('color-modal').classList.remove('active');
+        }
+
+        function renderColorList() {
+            renderColorSection('color-list-bg', COLOR_PRESETS);
+            renderColorSection('color-list-text', TEXT_COLORS);
+        }
+
+        function renderColorSection(boxId, list) {
+            const box = document.getElementById(boxId);
+            box.innerHTML = '';
+            list.forEach((c, i) => {
+                const row = document.createElement('div');
+                row.className = 'color-row';
+
+                const picker = document.createElement('input');
+                picker.type = 'color';
+                picker.value = c.code;
+                picker.oninput = () => { c.code = picker.value.toLowerCase(); saveColors(); refreshPalettes(); };
+
+                const name = document.createElement('input');
+                name.type = 'text';
+                name.className = 'input-text';
+                name.maxLength = 6;
+                name.value = c.name;
+                name.placeholder = '色の名前';
+                name.oninput = () => { c.name = name.value; saveColors(); refreshPalettes(); };
+
+                const del = document.createElement('button');
+                del.className = 'btn btn-danger';
+                del.textContent = '✕';
+                del.onclick = () => deleteColor(list, i);
+
+                row.appendChild(picker);
+                row.appendChild(name);
+                row.appendChild(del);
+                box.appendChild(row);
             });
         }
 
-        function createPalette(containerId, onSelectColor) {
+        function addColor(which) {
+            const list = which === 'text' ? TEXT_COLORS : COLOR_PRESETS;
+            if (list.length >= MAX_COLORS) {
+                alert(`色は最大${MAX_COLORS}色までです。`);
+                return;
+            }
+            list.push({ name: '新色', code: '#888888' });
+            saveColors();
+            renderColorList();
+            refreshPalettes();
+        }
+
+        function deleteColor(list, i) {
+            if (list.length <= 1) {
+                alert('色は1つ以上必要です。');
+                return;
+            }
+            if (!confirm(`「${list[i].name}」を削除しますか？\n（すでに塗ったマスの色は、そのまま残ります）`)) return;
+            list.splice(i, 1);
+            saveColors();
+            renderColorList();
+            refreshPalettes();
+        }
+
+        function resetColors() {
+            if (!confirm('背景色と指示記号の色の一覧を、最初の色に戻しますか？\n（すでに塗ったマスの色は、そのまま残ります）')) return;
+            COLOR_PRESETS.splice(0, COLOR_PRESETS.length, ...cloneColors(DEFAULT_BG_COLORS));
+            TEXT_COLORS.splice(0, TEXT_COLORS.length, ...cloneColors(DEFAULT_TEXT_COLORS));
+            saveColors();
+            renderColorList();
+            refreshPalettes();
+        }
+
+        function createPalette(containerId, onSelectColor, list, withAuto) {
             const container = document.getElementById(containerId);
             container.innerHTML = '';
-            COLOR_PRESETS.forEach(color => {
+            const make = (label, code, bg) => {
                 const btn = document.createElement('button');
-                btn.className = `color-btn ${color.textClass}`;
-                btn.style.backgroundColor = color.code;
-                btn.textContent = color.name;
+                btn.className = 'color-btn';
+                btn.dataset.color = code;
+                btn.title = label;
+                btn.style.backgroundColor = bg || '#f3f4f6';
+                btn.style.color = bg ? (luminance(bg) < 0.4 ? '#ffffff' : '#000000') : '#374151';
+                btn.textContent = label;
                 btn.onclick = () => {
-                    onSelectColor(color.code);
-                    updatePaletteSelection(containerId, color.code);
+                    onSelectColor(code);
+                    updatePaletteSelection(containerId, code);
                 };
                 container.appendChild(btn);
-            });
+            };
+            if (withAuto) make('自動', '', null);
+            list.forEach(c => make(c.name, c.code, c.code));
         }
 
         function updatePaletteSelection(containerId, activeColor) {
-            const btns = document.querySelectorAll(`#${containerId} .color-btn`);
-            btns.forEach(btn => {
-                if (rgbToHex(btn.style.backgroundColor).toLowerCase() === activeColor.toLowerCase()) {
-                    btn.classList.add('active');
-                } else {
-                    btn.classList.remove('active');
-                }
+            const active = String(activeColor || '').toLowerCase();
+            document.querySelectorAll(`#${containerId} .color-btn`).forEach(btn => {
+                btn.classList.toggle('active', (btn.dataset.color || '').toLowerCase() === active);
             });
         }
 
@@ -3435,17 +3834,17 @@ var qrcode = function() {
 
         // チェックが入っているとき、他の車型の「同じ行・同じ列」のマスにも作業名を反映する
         // （相手の行・列が足りないときは、その車型だけ何もしない）
+        // チェックが入っているとき、他の車型の「同じ行・同じ列」のマスにも作業名を反映する
+        // （相手にその行・列がないときは、その車型だけ何もしない）
         function syncNameToOthers() {
             if (!document.getElementById('name-sync').checked) return;
             const name = gridState.cells[selectedCellIndex].name;
-            const r = Math.floor(selectedCellIndex / gridState.cols);
-            const c = selectedCellIndex % gridState.cols;
+            const rc = rcOf(gridState, selectedCellIndex);
             TYPES.forEach(t => {
                 if (t === activeType) return;
                 const sheet = project.sheets[t];
-                if (r < sheet.rows && c < sheet.cols) {
-                    sheet.cells[r * sheet.cols + c].name = name;
-                }
+                const i = indexOfRC(sheet, rc.r, rc.c);
+                if (i >= 0) sheet.cells[i].name = name;
             });
         }
 
@@ -3458,8 +3857,9 @@ var qrcode = function() {
             TYPES.forEach(type => {
                 const sheet = project.sheets[type];
                 sheet.cells.forEach((cell, index) => {
-                    const r = Math.floor(index / sheet.cols) + 1;
-                    const c = (index % sheet.cols) + 1;
+                    const rc = rcOf(sheet, index);
+                    const r = rc.r + 1;
+                    const c = rc.c + 1;
                     const checks = cell.isSplit
                         ? [
                             { side: ' 左側', text: cell.leftText, color: cell.leftColor },
@@ -3521,46 +3921,46 @@ var qrcode = function() {
         }
 
         // 行・列の変更処理
-        function changeGridSize() {
-            const rows = parseInt(document.getElementById('rows-select').value);
-            const cols = parseInt(document.getElementById('cols-select').value);
-
+        // 新しい「行ごとの列数」に合わせてマスを作り直す。同じ（行, 列）にある入力済みのマスは残す
+        function applyRowCols(newRowCols) {
             const newCells = [];
-            for (let r = 0; r < rows; r++) {
-                for (let c = 0; c < cols; c++) {
-                    const oldIndex = r * gridState.cols + c;
-                    if (r < gridState.rows && c < gridState.cols && gridState.cells[oldIndex]) {
-                        // 既存セルデータを維持
-                        newCells.push(gridState.cells[oldIndex]);
-                    } else {
-                        // 新規拡張セルデータ
-                        newCells.push({
-                            name: '',
-                            isSplit: false,
-                            singleText: '',
-                            singleColor: '#ffffff',
-                            leftText: '',
-                            leftColor: '#ffffff',
-                            rightText: '',
-                            rightColor: '#ffffff'
-                        });
-                    }
+            newRowCols.forEach((n, r) => {
+                for (let c = 0; c < n; c++) {
+                    const oi = indexOfRC(gridState, r, c);
+                    newCells.push(oi >= 0 ? gridState.cells[oi] : newCell());
                 }
-            }
-
-            gridState.rows = rows;
-            gridState.cols = cols;
+            });
+            gridState.rowCols = newRowCols;
+            gridState.rows = newRowCols.length;
             gridState.cells = newCells;
-
+            syncControls();
             selectCell(0);
             renderGrid();
         }
 
-        // フォントサイズの変更
-        function changeFontSize() {
-            gridState.fontSize = document.getElementById('font-size-select').value;
-            renderGrid();
+        // 行数の変更：増えた行は、直前の行と同じ列数にする
+        function changeRows() {
+            const rows = parseInt(document.getElementById('rows-select').value);
+            const cur = gridState.rowCols;
+            const next = [];
+            for (let r = 0; r < rows; r++) next.push(r < cur.length ? cur[r] : cur[cur.length - 1]);
+            applyRowCols(next);
         }
+
+        // 「列 (全行まとめて)」：すべての行を同じ列数にそろえる
+        function changeAllCols() {
+            const v = parseInt(document.getElementById('cols-select').value);
+            if (!v) return;
+            applyRowCols(gridState.rowCols.map(() => v));
+        }
+
+        // 行ごとの列数の変更（例：2行目だけ1列にする）
+        function changeRowCols(r, v) {
+            const next = gridState.rowCols.slice();
+            next[r] = v;
+            applyRowCols(next);
+        }
+
 
         // --- LocalStorage 保存・読み込み機能 ---
 
@@ -3581,14 +3981,34 @@ var qrcode = function() {
         }
 
         function savePreset() {
-            const nameInput = document.getElementById('preset-name');
-            const name = nameInput.value.trim();
+            // 保存名が空なら、工程名を使う。どちらも空なら、入力のポップアップを出す
+            const name = document.getElementById('preset-name').value.trim() || (project.processName || '').trim();
             if (!name) {
-                alert('保存名を入力してください。（例: A工程_車種X）');
+                document.getElementById('save-name-input').value = '';
+                document.getElementById('save-name-msg').textContent = '';
+                document.getElementById('save-name-modal').classList.add('active');
                 return;
             }
+            startSave(name);
+        }
 
-            // 保存前に、文字と背景色が合っているか最終確認
+        function closeSaveNameModal(ok) {
+            if (!ok) {
+                document.getElementById('save-name-modal').classList.remove('active');
+                return;
+            }
+            const v = document.getElementById('save-name-input').value.trim();
+            if (!v) {
+                document.getElementById('save-name-msg').textContent = '保存名を入力してください。';
+                return;
+            }
+            document.getElementById('save-name-modal').classList.remove('active');
+            document.getElementById('preset-name').value = v;
+            startSave(v);
+        }
+
+        // 保存前に、文字と背景色が合っているか最終確認してから保存する
+        function startSave(name) {
             const issues = findColorMismatches();
             if (issues.length > 0) {
                 showSaveWarn(issues, name);
@@ -3643,10 +4063,8 @@ var qrcode = function() {
                 project = createProject();
                 project.sheets.L4 = preset;
             }
-            TYPES.forEach(t => {
-                if (!project.sheets[t]) project.sheets[t] = newSheet(DEFAULT_SIZE[t][0], DEFAULT_SIZE[t][1]);
-                project.sheets[t].fontSize = project.sheets[t].fontSize || 'text-size-md';
-            });
+            normalizeProject(project);
+            syncProcessNameInput();
             switchTab(activeType);
         }
 
@@ -3659,7 +4077,7 @@ var qrcode = function() {
         }
 
         // --- QRコード共有（送りたい車型だけ選んで、本物のQRコードにする） ---
-        const FORMAT_VERSION = 1;
+        const FORMAT_VERSION = 3; // 3：色を色コードで送る・指示記号の色を追加（1・2の古いQRも読み込める）
         let qrToken = 0;
 
         function b64urlEnc(bytes) {
@@ -3683,58 +4101,73 @@ var qrcode = function() {
             return new Uint8Array(await new Response(st.readable).arrayBuffer());
         }
 
-        function colorIndex(code) {
-            const i = COLOR_PRESETS.findIndex(p => p.code.toLowerCase() === String(code).toLowerCase());
-            return i < 0 ? 0 : i;
-        }
-
         // 1枚ぶんを短い形に直す（QRの容量を節約するため）
-        function sheetToCompact(sheet) {
+        // 1枚ぶんを短い形に直す（QRの容量を節約するため）。idx は、色コードを「色の番号」に直す関数
+        function sheetToCompact(sheet, idx) {
+            const sizes = { 'text-size-sm': 'sm', 'text-size-md': 'md', 'text-size-lg': 'lg', 'text-size-auto': 'au' };
+            const tc = c => (c ? idx(c) : -1); // 指示記号の色「自動」は -1
             return {
-                r: sheet.rows,
-                c: sheet.cols,
-                f: (sheet.fontSize || 'text-size-md').replace('text-size-', ''),
+                r: sheet.rowCols.slice(),
+                f: sizes[sheet.fontSize] || 'md',
                 k: sheet.cells.map(x => x.isSplit
-                    ? [x.name || '', 1, x.leftText, colorIndex(x.leftColor), x.rightText, colorIndex(x.rightColor)]
-                    : [x.name || '', 0, x.singleText, colorIndex(x.singleColor)])
+                    ? [x.name || '', 1, x.leftText, idx(x.leftColor), tc(x.leftTextColor), x.rightText, idx(x.rightColor), tc(x.rightTextColor)]
+                    : [x.name || '', 0, x.singleText, idx(x.singleColor), tc(x.singleTextColor)])
             };
         }
 
         // 受け取ったデータを検査しながら1枚に戻す（不正なデータは例外にする）
-        function compactToSheet(o) {
-            const rows = Number(o.r), cols = Number(o.c);
-            if (!(rows >= 1 && rows <= 10 && cols >= 1 && cols <= 10) || !Array.isArray(o.k) || o.k.length !== rows * cols) {
+        // 受け取ったデータを検査しながら1枚に戻す（不正なデータは例外にする）
+        // 受け取ったデータを検査しながら1枚に戻す（不正なデータは例外にする）
+        // colorOf：色の番号 → 色コード、ver：QRの形式の番号
+        function compactToSheet(o, colorOf, ver) {
+            // r：行ごとの列数の配列（形式2以降）／ 形式1は r=行数・c=列数
+            const rowCols = Array.isArray(o.r) ? o.r.map(Number) : Array.from({ length: Number(o.r) }, () => Number(o.c));
+            const total = rowCols.reduce((a, b) => a + b, 0);
+            if (!(rowCols.length >= 1 && rowCols.length <= 10 && rowCols.every(n => n >= 1 && n <= 10)) ||
+                !Array.isArray(o.k) || o.k.length !== total) {
                 throw new Error('invalid');
             }
-            const col = i => (COLOR_PRESETS[i] || COLOR_PRESETS[0]).code;
             const str = (v, n) => String(v == null ? '' : v).slice(0, n);
+            const tcOf = i => (Number(i) >= 0 ? colorOf(i) : '');
             const cells = o.k.map(a => {
                 const cell = newCell();
                 cell.name = str(a[0], 60);
                 if (a[1]) {
                     cell.isSplit = true;
                     cell.leftText = str(a[2], 2);
-                    cell.leftColor = col(a[3]);
-                    cell.rightText = str(a[4], 2);
-                    cell.rightColor = col(a[5]);
+                    cell.leftColor = colorOf(a[3]);
+                    if (ver >= 3) {
+                        cell.leftTextColor = tcOf(a[4]);
+                        cell.rightText = str(a[5], 2);
+                        cell.rightColor = colorOf(a[6]);
+                        cell.rightTextColor = tcOf(a[7]);
+                    } else {
+                        cell.rightText = str(a[4], 2);
+                        cell.rightColor = colorOf(a[5]);
+                    }
                 } else {
                     cell.singleText = str(a[2], 2);
-                    cell.singleColor = col(a[3]);
+                    cell.singleColor = colorOf(a[3]);
+                    if (ver >= 3) cell.singleTextColor = tcOf(a[4]);
                 }
                 return cell;
             });
-            return {
-                rows: rows,
-                cols: cols,
-                fontSize: ['sm', 'md', 'lg'].includes(o.f) ? 'text-size-' + o.f : 'text-size-md',
-                cells: cells
-            };
+            return { rows: rowCols.length, rowCols: rowCols, fontSize: 'text-size-auto', cells: cells };
         }
 
         // QRに入れるURL（アプリのアドレス + #d=データ）を作る
+        // QRに入れるURL（アプリのアドレス + #d=データ）を作る
         async function buildShareUrl(types) {
-            const data = { v: FORMAT_VERSION, s: {} };
-            types.forEach(t => { data.s[t] = sheetToCompact(project.sheets[t]); });
+            const pal = []; // 使った色コードの一覧（QRの中で、色を番号で表すため）
+            const idx = hex => {
+                const h = String(hex).replace('#', '').toLowerCase();
+                let i = pal.indexOf(h);
+                if (i < 0) { pal.push(h); i = pal.length - 1; }
+                return i;
+            };
+            const data = { v: FORMAT_VERSION, n: String(project.processName || '').slice(0, 60), s: {} };
+            types.forEach(t => { data.s[t] = sheetToCompact(project.sheets[t], idx); });
+            data.p = pal;
             const raw = new TextEncoder().encode(JSON.stringify(data));
             let best = 'r' + b64urlEnc(raw);
             if (typeof CompressionStream !== 'undefined') {
@@ -3821,9 +4254,11 @@ var qrcode = function() {
         }
 
         // 閲覧モード：受け取った車型のタブだけを出し、指示ビラ以外の画面を隠す
+        // 閲覧モード：受け取った車型のタブだけを出し、指示ビラ以外の画面を隠す
         function enterViewMode(types) {
             document.body.classList.add('view-mode');
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('hidden', !types.includes(b.dataset.type)));
+            document.getElementById('view-process').textContent = project.processName || '受け取った指示ビラ';
             switchTab(types[0]);
         }
 
@@ -3832,6 +4267,7 @@ var qrcode = function() {
             document.body.classList.remove('view-mode');
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('hidden'));
             history.replaceState(null, '', location.pathname + location.search);
+            syncProcessNameInput();
         }
 
         // QRを読み取って開いたとき、アドレスの後ろのデータからレイアウトを復元する
@@ -3842,17 +4278,23 @@ var qrcode = function() {
                 let bytes = b64urlDec(str.slice(1));
                 if (str[0] === 'z') bytes = await runStream(DecompressionStream, bytes);
                 const data = JSON.parse(new TextDecoder().decode(bytes));
-                if (data.v !== FORMAT_VERSION || !data.s) throw new Error('version');
+                if (!(data.v >= 1 && data.v <= FORMAT_VERSION) || !data.s) throw new Error('version');
 
+                // 形式3以降は、QRの中の色コード一覧を使う。形式1・2は、昔の色番号の表を使う
+                const colorOf = data.v >= 3
+                    ? (i => { const h = String((data.p || [])[i] || ''); return /^[0-9a-f]{6}$/i.test(h) ? '#' + h.toLowerCase() : '#ffffff'; })
+                    : (i => LEGACY_COLORS[i] || '#ffffff');
                 const got = [];
                 TYPES.forEach(t => {
                     if (data.s[t]) {
-                        project.sheets[t] = compactToSheet(data.s[t]);
+                        project.sheets[t] = compactToSheet(data.s[t], colorOf, data.v);
                         got.push(t);
                     }
                 });
                 if (got.length === 0) throw new Error('empty');
 
+                project.processName = String(data.n || '').slice(0, 60);
+                syncProcessNameInput();
                 enterViewMode(got);
             } catch (e) {
                 alert('QRコードのデータを読み込めませんでした。アプリが古い可能性があります。最新のアプリで開き直してください。');
