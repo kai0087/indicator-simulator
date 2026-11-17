@@ -1,0 +1,219 @@
+/* css/sheet.css — 指示ビラ本体の見た目（行の枠・マス・作業名・分割の点線・選択の黒枠・自動文字サイズ） */
+/* （指示ビラ・レイアウトシミュレータ / MIT License） */
+
+.sheet-wrapper {
+    width: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 10px 0;
+}
+
+.sheet-grid {
+    display: grid;
+    gap: 2px;
+    background-color: var(--cell-border);
+    border: 3px solid var(--cell-border);
+    padding: 2px;
+    width: 100%;
+    max-width: 750px;
+    aspect-ratio: 4 / 3;
+    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}
+
+/* 1行表示のときは高さを現在の1/2にする（4:3 → 8:3） */
+.sheet-grid.single-row {
+    aspect-ratio: 8 / 3;
+}
+
+/* マス目セル */
+.cell {
+    background-color: #ffffff;
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    width: 100%;
+    height: 100%;
+    user-select: none;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.cell.selected {
+    outline: 4px solid #f59e0b;
+    outline-offset: -4px;
+    z-index: 10;
+}
+
+/* マス内を縦並び（上：作業名 / 下：本体）にする */
+.cell {
+    flex-direction: column;
+}
+
+.cell-name {
+    flex: 0 0 20%;
+    min-height: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 0 3px;
+    background-color: #f3f4f6;
+    color: #111827;
+    border-bottom: 1px solid #9ca3af;
+    font-weight: bold;
+    font-size: clamp(0.55rem, 1.8vw, 0.95rem);
+    line-height: 1;
+    overflow: hidden;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* 長い作業名は1行で表示し、はみ出す分は「…」で省略する */
+.cell-name-text {
+    display: block;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cell-body {
+    flex: 1 1 0;
+    min-height: 0;
+    display: flex;
+    width: 100%;
+}
+
+/* 全体（1分割）マス */
+.cell-single {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-weight: bold;
+    word-break: break-all;
+    padding: 2px;
+    line-height: 1.1;
+}
+
+/* 左右分割（2分割）マス */
+.cell-split {
+    display: flex;
+    width: 100%;
+    height: 100%;
+}
+
+.cell-left, .cell-right {
+    flex: 1;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    font-weight: bold;
+    word-break: break-all;
+    padding: 2px;
+    line-height: 1.1;
+}
+
+/* 左右分割の中心線：黒と白の点線を交互に並べて、どの背景色でも見えるようにする */
+.cell-split {
+    position: relative;
+}
+
+.cell-split::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 3px;
+    transform: translateX(-50%);
+    background: repeating-linear-gradient(
+        to bottom,
+        #000000 0,
+        #000000 5px,
+        #ffffff 5px,
+        #ffffff 10px
+    );
+    pointer-events: none;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+}
+
+/* 文字サイズクラス */
+.text-size-sm { font-size: 1rem; }
+
+.text-size-md { font-size: 1.4rem; }
+
+.text-size-lg { font-size: 2rem; }
+
+@media (max-width: 600px) {
+    .text-size-sm { font-size: 0.75rem; }
+    .text-size-md { font-size: 1rem; }
+    .text-size-lg { font-size: 1.3rem; }
+}
+
+/* 行ごとの列数（行単位でマス数を変えられる） */
+.sheet-row { display: grid; gap: 2px; min-height: 0; min-width: 0; }
+
+/* 背景色を印刷しても消えないようにする（黒背景＋白文字が読めなくなるのを防ぐ） */
+.cell-single, .cell-left, .cell-right { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+/* 指示記号の文字サイズ「自動」：マスの約60%（--fit）に収まる大きさにする */
+.cell-body { position: relative; }
+
+.cell-single, .cell-split { position: absolute; inset: 0; width: auto; height: auto; }
+
+.cell-single, .cell-left, .cell-right { container-type: size; }
+
+.sym { display: block; line-height: 1; white-space: nowrap; }
+
+.text-size-auto { font-size: 1.4rem; }
+
+@supports (width: 1cqw) {
+    .text-size-auto .sym {
+        font-size: min(calc(var(--fit, 0.6) * 100cqh), calc(var(--fit, 0.6) * 100cqw / var(--em, 1)));
+    }
+}
+
+/* 行ごとに独立した枠（全体の外枠は無し）。列数が少ない行は、その分だけ短い枠になる */
+.sheet-grid { background: transparent; border: none; padding: 0; gap: 8px; box-shadow: none; }
+
+.sheet-row {
+    --n: 1; --maxc: 1;
+    background: var(--cell-border);
+    border: 3px solid var(--cell-border);
+    padding: 2px;
+    box-sizing: border-box;
+    /* マス1つの幅を、どの行でもそろえる（枠の太さと隙間を引いて計算） */
+    width: calc(var(--n) * (100% - 10px - (var(--maxc) - 1) * 2px) / var(--maxc) + (var(--n) - 1) * 2px + 10px);
+}
+
+/* 選択中のマス：4辺を黒の太線で囲む（暗い背景でも見えるよう、内側に細い白線を添える） */
+.cell.selected { outline: none; }
+
+.cell.selected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 4px solid #000000;
+    box-shadow: inset 0 0 0 2px #ffffff;
+    box-sizing: border-box;
+    pointer-events: none;
+    z-index: 20;
+}
+
+/* 選択中のマス：作業名の欄を黒地・白文字にして、黒の枠線に隠れずに、はっきり読めるようにする
+   （画面のみ。閲覧モードと印刷は、通常の表示のまま） */
+@media screen {
+    body:not(.view-mode) .cell.selected .cell-name {
+        position: relative;
+        z-index: 21;
+        background-color: #000000;
+        color: #ffffff;
+        border-bottom-color: #000000;
+    }
+}

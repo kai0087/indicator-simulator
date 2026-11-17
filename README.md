@@ -1,6 +1,6 @@
 # 指示ビラ・レイアウトシミュレータ
 
-![version](https://img.shields.io/badge/version-1.4.0-blue)
+![version](https://img.shields.io/badge/version-2.1.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
 製造ラインの「指示ビラ」（作業の指示を示すマス目の表示）のレイアウトを、スマホやパソコンで作って確認・印刷・共有できるWebアプリです。
@@ -60,24 +60,60 @@
 
 ## 管理者向け：更新のしかた
 
-1. 変更した `index.html` と `sw.js` を、このリポジトリの同じ名前のファイルに上書きします
-   - GitHubのリポジトリ画面で「Add file」→「Upload files」→ ファイルをドラッグ → 「Commit changes」
-2. **`sw.js` の `VERSION` の数字を必ず上げてください**（上げないと、端末が古い画面を使い続けます）
+1. 変更したファイルを、このリポジトリの同じ場所のファイルに上書きします
+   - GitHubのリポジトリ画面で「Add file」→「Upload files」→ ファイル（`css`・`js`・`vendor` のフォルダも、フォルダごと）をドラッグ → 「Commit changes」
+2. **版の数字を必ず上げてください**（上げないと、端末が古い画面を使い続けます）。`python3 tools/bump_version.py 新しい版` で、`js/version.js`・`sw.js`・`index.html`・`README.md` の版が、まとめて更新されます（手で直す場合は、最低でも `sw.js` の `VERSION`）
 3. 数分待つと、GitHub Pagesに反映されます
 4. 使う人は、電波のある場所でアプリを開き直すと、新しい版になります（反映に、2回開き直す必要がある場合があります）
 
+> ファイルを追加・削除・名前変更したときは、`sw.js` の `FILES`（オフライン用の保存一覧）も直してください。一覧に無いファイルは、電波がないと読み込めません。また、一覧に書いたファイルが1つでも無いと、オフライン用の保存が失敗します。
+
 ### ファイル構成
+
+```
+index.html            画面の骨組み
+sw.js                 オフライン動作のための裏方（Service Worker）
+manifest.webmanifest  ホーム画面に追加するときの名前・色などの設定
+icon-192.png / icon-512.png / apple-touch-icon.png   アイコン画像
+css/                  見た目
+js/                   動き（機能ごとに分けています）
+vendor/               他の人が作った部品（QRコード生成）
+tests/                確認の仕組み（静的チェック・動作テスト）。tests/README.md を参照
+tools/                版の数字を、まとめて更新するツール
+```
 
 | ファイル | 役割 |
 | --- | --- |
-| `index.html` | アプリ本体（画面・動き・QR生成ライブラリを含む1ファイル） |
-| `sw.js` | オフライン動作のための裏方のファイル（Service Worker） |
-| `manifest.webmanifest` | ホーム画面に追加するときの名前・色などの設定 |
-| `icon-192.png` / `icon-512.png` / `apple-touch-icon.png` | アイコン画像 |
-| `README.md` | このファイル |
-| `CHANGELOG.md` | 変更履歴 |
-| `LICENSE` | ライセンス（MIT） |
-| `THIRD_PARTY_LICENSES.md` | 組み込んだライブラリの権利表記 |
+| `css/base.css` | ページ全体の枠組み（色の変数・ヘッダー・ボタン・車型タブ） |
+| `css/sheet.css` | 指示ビラ本体の見た目（行の枠・マス・分割の点線・選択の黒枠・自動文字サイズ） |
+| `css/panel.css` | 編集パネルの見た目 |
+| `css/modal.css` | ポップアップの見た目（保存名・警告・QR共有・色の設定） |
+| `css/mode.css` | 閲覧モード（QRを読み取った側）の見た目 |
+| `css/print.css` | 印刷・PDFのときの見た目 |
+| `js/version.js` | 版の数字（ここが「正」。画面の「ver」表示は、ここから作られます） |
+| `js/config.js` | 定数（行・列の上限、初期の色、QR形式の番号など） |
+| `js/state.js` | アプリの状態（いま開いている工程・車型・選んでいるマス） |
+| `js/data.js` | データの形（1マス・1枚・1工程） |
+| `js/colors.js` | 色の一覧、色ボタン、「色の設定」画面 |
+| `js/render.js` | ビラを画面に描く |
+| `js/layout.js` | 車型タブの切り替え、行・列の設定 |
+| `js/editor.js` | マスの編集、作業名、クリア、オールクリア、工程名 |
+| `js/presets.js` | 保存・読込・削除、保存前の確認 |
+| `js/codec.js` | QRに入れるデータの作り方・読み方 |
+| `js/share.js` | QR共有の画面 |
+| `js/view.js` | QRを読み取った側の処理（閲覧モード） |
+| `js/main.js` | 起動（最初の処理、オフライン用の登録） |
+| `vendor/qrcode.js` | QRコード生成ライブラリ（qrcode-generator、MIT） |
+| `tests/` | 確認の仕組み（`static_check.py`＝ファイルの中身の検査、`e2e_test.py`＝ブラウザでの動作テスト、`run_all.py`＝全部実行） |
+| `tools/bump_version.py` | 版の数字を、全部の場所でまとめて更新 |
+| `README.md` / `CHANGELOG.md` | このファイル／変更履歴 |
+| `LICENSE` / `THIRD_PARTY_LICENSES.md` | ライセンス／組み込んだライブラリの権利表記 |
+
+> `js` の読み込み順は、`index.html` の `<script>` の並びで決まっています（上から順に読み込まれます）。順番を変えると動かなくなることがあります。
+
+### 修正のあとの確認（開発者向け）
+
+修正のたびに、`python3 tests/run_all.py` を実行して、全部成功することを確認してください（詳しくは `tests/README.md`）。
 
 ## 動作環境
 

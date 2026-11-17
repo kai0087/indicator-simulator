@@ -1,0 +1,187 @@
+/* css/panel.css — 編集パネルの見た目（入力欄・色ボタン・保存一覧・作業名のクリア） */
+/* （指示ビラ・レイアウトシミュレータ / MIT License） */
+
+/* 操作パネル */
+.control-panel {
+    background-color: var(--panel-bg);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.panel-section {
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 14px;
+}
+
+.panel-section:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+.section-title {
+    font-size: 1rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #374151;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.target-indicator {
+    font-size: 0.8rem;
+    background-color: #eff6ff;
+    color: #1d4ed8;
+    padding: 2px 8px;
+    border-radius: 12px;
+    border: 1px solid #bfdbfe;
+}
+
+/* 入力フォーム類 */
+.input-group {
+    margin-bottom: 10px;
+}
+
+.input-group label {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-bottom: 4px;
+    color: #4b5563;
+}
+
+.input-text {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: bold;
+}
+
+/* 分割切り替えトグルボタン */
+.split-toggle {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 12px;
+}
+
+.toggle-btn {
+    padding: 8px;
+    text-align: center;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background-color: #f9fafb;
+    cursor: pointer;
+    font-size: 0.85rem;
+    font-weight: bold;
+}
+
+.toggle-btn.active {
+    background-color: #eff6ff;
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+/* カラーパレット */
+.color-palette {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.color-btn {
+    height: 38px;
+    border-radius: 6px;
+    border: 2px solid #d1d5db;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.75rem;
+    font-weight: bold;
+    box-shadow: inset 0 0 2px rgba(0,0,0,0.2);
+}
+
+.color-btn.active {
+    border-color: #000;
+    transform: scale(1.05);
+    box-shadow: 0 0 0 2px #3b82f6;
+}
+
+.color-btn.text-black { color: #000; }
+
+.color-btn.text-white { color: #fff; }
+
+/* 保存レイアウト一覧 */
+.preset-list {
+    max-height: 150px;
+    overflow-y: auto;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-top: 8px;
+}
+
+.preset-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    border-bottom: 1px solid #f3f4f6;
+    font-size: 0.85rem;
+}
+
+.preset-item:last-child {
+    border-bottom: none;
+}
+
+.preset-item-name {
+    font-weight: bold;
+    cursor: pointer;
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.preset-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.btn-icon {
+    padding: 4px 8px;
+    font-size: 0.75rem;
+    border-radius: 4px;
+}
+
+/* 作業名：クリアボタンと「他車型に反映」チェック */
+.name-row { display: flex; gap: 6px; }
+
+.name-row .input-text { flex: 1; min-width: 0; }
+
+.name-row .btn { white-space: nowrap; }
+
+.input-group .sync-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 8px 0 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #374151;
+}
+
+.sync-check input { width: 18px; height: 18px; }
+
+.row-cols-editor { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 100%; }
+
+.row-col-item { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; font-weight: bold; }
+
+.row-col-item select { padding: 3px 6px; font-size: 0.9rem; }

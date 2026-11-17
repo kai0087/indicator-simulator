@@ -1,0 +1,36 @@
+/* css/mode.css — 閲覧モード（QRを読み取った側）の見た目 */
+/* （指示ビラ・レイアウトシミュレータ / MIT License） */
+
+/* 閲覧モード（QRを読み取って開いたとき：指示ビラだけを表示） */
+.view-bar { display: none; }
+
+body.view-mode .view-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 8px;
+    font-size: 0.9rem;
+    font-weight: bold;
+    color: #374151;
+}
+
+body.view-mode > header,
+body.view-mode .grid-config-bar,
+body.view-mode .control-panel { display: none !important; }
+
+body.view-mode .app-container { grid-template-columns: 1fr; }
+
+body.view-mode .cell { cursor: default; }
+
+body.view-mode .cell.selected { outline: none; }
+
+body.view-mode .tab-bar { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 1fr; }
+
+.tab-btn.hidden { display: none; }
+
+.view-title-main { font-size: 1.1rem; }
+
+.view-title-sub { font-size: 0.75rem; color: #6b7280; font-weight: normal; }
+
+body.view-mode .cell.selected::after { display: none; }

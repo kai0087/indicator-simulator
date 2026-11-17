@@ -1,0 +1,30 @@
+/* css/print.css — 印刷・PDFのときの見た目 */
+/* （指示ビラ・レイアウトシミュレータ / MIT License） */
+
+/* 印刷用スタイル */
+@media print {
+    body {
+        background-color: white;
+        padding: 0;
+    }
+    .no-print {
+        display: none !important;
+    }
+    .app-container {
+        display: block !important;
+    }
+    .preview-area {
+        width: 100% !important;
+        border: none !important;
+        box-shadow: none !important;
+        padding: 0 !important;
+    }
+    .sheet-grid {
+        page-break-inside: avoid;
+    }
+    .cell {
+        border-color: #000 !important;
+    }
+}
+
+@media print { .cell.selected::after { display: none; } }

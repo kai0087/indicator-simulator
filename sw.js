@@ -1,5 +1,5 @@
 // ===== 更新するときは、下の VERSION の数字を上げてから置き換える =====
-const VERSION = 'v1.4.0';
+const VERSION = 'v2.1.0';
 const CACHE_NAME = 'indicator-simulator-' + VERSION;
 const FILES = [
   './',
@@ -7,7 +7,27 @@ const FILES = [
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
-  './apple-touch-icon.png'
+  './apple-touch-icon.png',
+  './css/base.css',
+  './css/sheet.css',
+  './css/panel.css',
+  './css/modal.css',
+  './css/mode.css',
+  './css/print.css',
+  './vendor/qrcode.js',
+  './js/version.js',
+  './js/config.js',
+  './js/state.js',
+  './js/data.js',
+  './js/colors.js',
+  './js/render.js',
+  './js/layout.js',
+  './js/editor.js',
+  './js/presets.js',
+  './js/codec.js',
+  './js/share.js',
+  './js/view.js',
+  './js/main.js'
 ];
 
 // インストール時：必要なファイルを端末に保存

@@ -1,0 +1,110 @@
+/* css/modal.css — ポップアップの見た目（保存名・警告・QR共有・色の設定） */
+/* （指示ビラ・レイアウトシミュレータ / MIT License） */
+
+/* モーダルダイアログ */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0,0,0,0.5);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    padding: 16px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease;
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.modal-body {
+    background-color: white;
+    padding: 20px;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 450px;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+}
+
+.modal-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 12px;
+}
+
+.modal-textarea {
+    width: 100%;
+    height: 120px;
+    font-family: monospace;
+    font-size: 0.8rem;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    margin-bottom: 12px;
+    resize: vertical;
+}
+
+.qr-display {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    background: #f9fafb;
+    border-radius: 6px;
+    margin-bottom: 12px;
+}
+
+#qr-canvas {
+    border: 4px solid white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* 背景色の設定忘れ警告ポップアップ */
+.warn-body {
+    border-top: 6px solid #f59e0b;
+}
+
+.warn-title {
+    font-size: 1.1rem;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #b45309;
+}
+
+.warn-list {
+    margin: 0 0 16px 1.3em;
+    font-size: 0.95rem;
+    line-height: 1.7;
+}
+
+.share-types { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.share-check {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    font-weight: bold;
+    font-size: 1rem;
+}
+
+.share-check input { width: 20px; height: 20px; }
+
+#qr-canvas { width: 100%; max-width: 340px; height: auto; image-rendering: pixelated; }
+
+/* 色の設定画面 */
+.color-row { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+
+.color-row input[type="color"] { width: 46px; height: 38px; padding: 0; border: 1px solid #d1d5db; border-radius: 6px; background: #fff; }
+
+.color-row .input-text { flex: 1; min-width: 0; font-size: 1rem; }
