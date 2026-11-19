@@ -1,6 +1,6 @@
 # 指示ビラ・レイアウトシミュレータ
 
-![version](https://img.shields.io/badge/version-2.1.0-blue)
+![version](https://img.shields.io/badge/version-2.2.0-blue)
 ![license](https://img.shields.io/badge/license-MIT-green)
 
 製造ラインの「指示ビラ」（作業の指示を示すマス目の表示）のレイアウトを、スマホやパソコンで作って確認・印刷・共有できるWebアプリです。
@@ -110,6 +110,13 @@ tools/                版の数字を、まとめて更新するツール
 | `LICENSE` / `THIRD_PARTY_LICENSES.md` | ライセンス／組み込んだライブラリの権利表記 |
 
 > `js` の読み込み順は、`index.html` の `<script>` の並びで決まっています（上から順に読み込まれます）。順番を変えると動かなくなることがあります。
+
+### よくある変更のしかた（開発者向け）
+
+- **車型を増やす**：`js/config.js` の `TYPES` に、名前を足します（例：`['L4', 'V6', 'GD', 'XX']`）。タブ・保存・QR共有・オールクリアが、自動で対応します。最初のマス数を変えたいときは、`DEFAULT_ROWCOLS` にも書きます（書かないと、2行3列）
+- **行・列の上限、初期の色、色の名前**：`js/config.js`
+- **標準の見た目（色・大きさ・点線）**：`css/` のファイル（ビラ本体は `css/sheet.css`）
+- 変更したあとは、版の数字を上げて（`tools/bump_version.py`）、下の確認を実行します
 
 ### 修正のあとの確認（開発者向け）
 

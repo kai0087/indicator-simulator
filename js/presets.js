@@ -171,9 +171,9 @@ function applyPreset(name) {
     if (preset.sheets) {
         project = preset;
     } else {
-        // 旧形式（1枚だけ）の保存データは L4 として読み込む
+        // 旧形式（1枚だけ）の保存データは、最初の車型（L4）として読み込む
         project = createProject();
-        project.sheets.L4 = preset;
+        project.sheets[TYPES[0]] = preset;
     }
     normalizeProject(project);
     syncProcessNameInput();

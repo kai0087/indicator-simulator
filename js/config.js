@@ -31,9 +31,18 @@ const MAX_COLS = 5;  // 列の選択肢の上限
 
 const AUTO_FIT_RATIO = 60; // 指示記号の文字サイズ：マスの何%に収めるか
 
-// 車型と、1工程ぶんのデータ（L4・V6・GDの3枚）
+// 車型の一覧（タブ・保存・QRは、この並びから作られます。車型を増やすときは、ここに名前を足します）
 const TYPES = ['L4', 'V6', 'GD'];
 
+// 指示記号の入力欄の一覧（全体＝single、左右分割の左＝left・右＝right）。
+// 編集パネルの入力欄・色ボタンは、この一覧から作られます（buildSymbolControls）。
+// 欄を増やすときは、ここに足し、codec.js・render.js・presets.js も、あわせて直します。
+const SYMBOL_FIELDS = [
+    { key: 'single', group: 'single', textLabel: '指示記号 (最大2文字)', bgLabel: '背景色', tcLabel: '指示記号の色', placeholder: '例: A1' },
+    { key: 'left', group: 'split', textLabel: '左側 指示記号 (最大2文字)', bgLabel: '左側 背景色', tcLabel: '左側 指示記号の色', placeholder: '左', accent: '#3b82f6' },
+    { key: 'right', group: 'split', textLabel: '右側 指示記号 (最大2文字)', bgLabel: '右側 背景色', tcLabel: '右側 指示記号の色', placeholder: '右', accent: '#10b981' }
+];
+// 車型ごとの、行ごとの列数の初期値（書いていない車型は、2行3列＝[3, 3] になります）
 const DEFAULT_ROWCOLS = { L4: [3, 3], V6: [3, 3], GD: [3, 3] }; // 行ごとの列数（[3, 3]＝2行3列）。最初の値で、いつでも変更可
 
 // --- QRコード共有（送りたい車型だけ選んで、本物のQRコードにする） ---

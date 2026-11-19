@@ -35,10 +35,6 @@ function textColorFor(bg, textColor) {
     return luminance(bg) < 0.15 ? '#ffffff' : '';
 }
 
-// 文字色（白/黒）判定ヘルパー
-function getTextColorClass(hexColor) {
-    return luminance(hexColor) < 0.4 ? 'text-white' : 'text-black';
-}
 
 // 色の明るさ（0＝真っ暗〜1＝真っ白）
 function luminance(hex) {
@@ -57,22 +53,18 @@ function renderColorPalettes() {
         gridState.cells[selectedCellIndex][key] = color;
         updateCellData();
     };
-    createPalette('palette-single', setter('singleColor'), COLOR_PRESETS);
-    createPalette('palette-left', setter('leftColor'), COLOR_PRESETS);
-    createPalette('palette-right', setter('rightColor'), COLOR_PRESETS);
-    createPalette('palette-single-text', setter('singleTextColor'), TEXT_COLORS, true);
-    createPalette('palette-left-text', setter('leftTextColor'), TEXT_COLORS, true);
-    createPalette('palette-right-text', setter('rightTextColor'), TEXT_COLORS, true);
+    SYMBOL_FIELDS.forEach(f => {
+        createPalette(`palette-${f.key}`, setter(`${f.key}Color`), COLOR_PRESETS);
+        createPalette(`palette-${f.key}-text`, setter(`${f.key}TextColor`), TEXT_COLORS, true);
+    });
 }
 
 // 選んでいるマスの色を、色ボタンの選択状態に反映する
 function syncPalettes(data) {
-    updatePaletteSelection('palette-single', data.singleColor);
-    updatePaletteSelection('palette-left', data.leftColor);
-    updatePaletteSelection('palette-right', data.rightColor);
-    updatePaletteSelection('palette-single-text', data.singleTextColor || '');
-    updatePaletteSelection('palette-left-text', data.leftTextColor || '');
-    updatePaletteSelection('palette-right-text', data.rightTextColor || '');
+    SYMBOL_FIELDS.forEach(f => {
+        updatePaletteSelection(`palette-${f.key}`, data[`${f.key}Color`]);
+        updatePaletteSelection(`palette-${f.key}-text`, data[`${f.key}TextColor`] || '');
+    });
 }
 
 // --- 色の設定（色の追加・削除・変更） ---
@@ -188,10 +180,4 @@ function updatePaletteSelection(containerId, activeColor) {
     });
 }
 
-// RGB表記をHEX値へ変換するユーティリティ
-function rgbToHex(rgbStr) {
-    if (rgbStr.startsWith('#')) return rgbStr;
-    const rgb = rgbStr.match(/\d+/g);
-    if (!rgb) return '#ffffff';
-    return "#" + ((1 << 24) + (parseInt(rgb[0]) << 16) + (parseInt(rgb[1]) << 8) + parseInt(rgb[2])).toString(16).slice(1);
-}
+

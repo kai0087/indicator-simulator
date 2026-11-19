@@ -5,6 +5,8 @@
 window.onload = function() {
     document.getElementById('app-version').textContent = 'ver ' + APP_VERSION.split('.').slice(0, 2).join('.');
     initSelectOptions();
+    renderTabs();
+    buildSymbolControls();
     project = createProject();
     gridState = project.sheets[activeType];
     syncControls();

@@ -35,8 +35,6 @@ function ensureOption(sel, v, label) {
     }
 }
 
-// 行・列・文字サイズの選択欄を、表示中の1枚に合わせる
-// 行・列・文字サイズの選択欄を、表示中の1枚に合わせる
 // 行・列の選択欄を、表示中の1枚に合わせる
 function syncControls() {
     const rowsSel = document.getElementById('rows-select');
@@ -68,6 +66,21 @@ function renderRowColsEditor() {
         sel.onchange = () => changeRowCols(r, parseInt(sel.value));
         label.appendChild(sel);
         box.appendChild(label);
+    });
+}
+
+// 車型タブを、TYPES（config.js）の並びから作る
+function renderTabs() {
+    const bar = document.getElementById('tab-bar');
+    bar.innerHTML = '';
+    bar.style.setProperty('--tabs', TYPES.length);
+    TYPES.forEach(t => {
+        const btn = document.createElement('button');
+        btn.className = 'tab-btn' + (t === activeType ? ' active' : '');
+        btn.dataset.type = t;
+        btn.setAttribute('onclick', `switchTab('${t}')`);
+        btn.textContent = t;
+        bar.appendChild(btn);
     });
 }
 

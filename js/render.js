@@ -62,7 +62,7 @@ function buildCell(cellData, index) {
     // 背景色・指示記号の文字・文字色を設定した1区画を作る
     const makeBox = (cls, text, bg, textColor) => {
         const box = document.createElement('div');
-        box.className = `${cls} ${gridState.fontSize} ${getTextColorClass(bg)}`;
+        box.className = `${cls} ${gridState.fontSize}`;
         box.style.backgroundColor = bg;
         box.style.color = textColorFor(bg, textColor);
         box.appendChild(makeSym(text));

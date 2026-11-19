@@ -2,19 +2,13 @@
 // （指示ビラ・レイアウトシミュレータ / MIT License）
 
 function newCell() {
-    return {
-        name: '',
-        isSplit: false,
-        singleText: '',
-        singleColor: '#ffffff',
-        singleTextColor: '',
-        leftText: '',
-        leftColor: '#ffffff',
-        leftTextColor: '',
-        rightText: '',
-        rightColor: '#ffffff',
-        rightTextColor: ''
-    };
+    const cell = { name: '', isSplit: false };
+    SYMBOL_FIELDS.forEach(f => {
+        cell[`${f.key}Text`] = '';
+        cell[`${f.key}Color`] = '#ffffff';
+        cell[`${f.key}TextColor`] = '';
+    });
+    return cell;
 }
 
 // rowCols：行ごとの列数（例 [3, 1]＝1行目3列・2行目1列）
@@ -23,9 +17,14 @@ function newSheet(rowCols) {
     return { rows: rowCols.length, rowCols: rowCols.slice(), fontSize: 'text-size-auto', cells: Array.from({ length: total }, newCell) };
 }
 
+// 車型ごとの、行ごとの列数の初期値（config.js に無い車型は、2行3列）
+function defaultRowCols(type) {
+    return DEFAULT_ROWCOLS[type] || [3, 3];
+}
+
 function createProject() {
     const sheets = {};
-    TYPES.forEach(t => { sheets[t] = newSheet(DEFAULT_ROWCOLS[t]); });
+    TYPES.forEach(t => { sheets[t] = newSheet(defaultRowCols(t)); });
     return { processName: '', sheets: sheets };
 }
 
@@ -40,7 +39,7 @@ function normalizeSheet(sheet) {
 
 function normalizeProject(proj) {
     proj.processName = String(proj.processName || '');
-    TYPES.forEach(t => { proj.sheets[t] = proj.sheets[t] ? normalizeSheet(proj.sheets[t]) : newSheet(DEFAULT_ROWCOLS[t]); });
+    TYPES.forEach(t => { proj.sheets[t] = proj.sheets[t] ? normalizeSheet(proj.sheets[t]) : newSheet(defaultRowCols(t)); });
 }
 
 // マス番号 ⇔ （行, 列）の変換（どちらも0始まり）

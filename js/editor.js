@@ -12,16 +12,10 @@ function syncProcessNameInput() {
 
 // 指示記号のクリア：文字・背景色・指示記号の色を、最初の状態に戻す
 function clearSymbol(field) {
-    const map = {
-        single: ['text-single', 'singleColor', 'singleTextColor'],
-        left: ['text-left', 'leftColor', 'leftTextColor'],
-        right: ['text-right', 'rightColor', 'rightTextColor']
-    };
-    const [inputId, bgKey, tcKey] = map[field];
-    document.getElementById(inputId).value = '';
+    document.getElementById(`text-${field}`).value = '';
     const cell = gridState.cells[selectedCellIndex];
-    cell[bgKey] = '#ffffff';
-    cell[tcKey] = '';
+    cell[`${field}Color`] = '#ffffff';
+    cell[`${field}TextColor`] = '';
     updateCellData();
     syncPalettes(cell);
 }
@@ -29,19 +23,15 @@ function clearSymbol(field) {
 // 全タブの、工程名・作業名・指示記号を消す（背景色とマスの数は、そのまま）
 // 全タブの、工程名・作業名・指示記号（文字・背景色・指示記号の色）を消す。マスの数と分割は、そのまま
 function allClear() {
-    if (!confirm('全てのタブ（L4・V6・GD）の、工程名・作業名・指示記号（背景色を含む）をすべて消します。よろしいですか？\n（マスの数と、左右の分割は、そのままです）')) return;
+    if (!confirm('全てのタブの、工程名・作業名・指示記号（背景色を含む）をすべて消します。よろしいですか？\n（マスの数と、左右の分割は、そのままです）')) return;
     project.processName = '';
     TYPES.forEach(t => project.sheets[t].cells.forEach(c => {
         c.name = '';
-        c.singleText = '';
-        c.singleColor = '#ffffff';
-        c.singleTextColor = '';
-        c.leftText = '';
-        c.leftColor = '#ffffff';
-        c.leftTextColor = '';
-        c.rightText = '';
-        c.rightColor = '#ffffff';
-        c.rightTextColor = '';
+        SYMBOL_FIELDS.forEach(f => {
+            c[`${f.key}Text`] = '';
+            c[`${f.key}Color`] = '#ffffff';
+            c[`${f.key}TextColor`] = '';
+        });
     }));
     syncProcessNameInput();
     renderGrid();
@@ -49,6 +39,29 @@ function allClear() {
 }
 
 // セルの選択処理
+// 編集パネルの、指示記号の入力欄・色ボタンを作る（SYMBOL_FIELDS の定義から）
+function buildSymbolControls() {
+    const group = f => `
+        <div class="input-group">
+            <label for="text-${f.key}">${f.textLabel}</label>
+            <div class="name-row"><input type="text" id="text-${f.key}" class="input-text" maxlength="2" placeholder="${f.placeholder}" oninput="updateCellData()"><button type="button" class="btn" onclick="clearSymbol('${f.key}')">✕ クリア</button></div>
+        </div>
+        <div class="input-group">
+            <label>${f.bgLabel}</label>
+            <div id="palette-${f.key}" class="color-palette"></div>
+        </div>
+        <div class="input-group">
+            <label>${f.tcLabel}</label>
+            <div id="palette-${f.key}-text" class="color-palette"></div>
+        </div>`;
+    const single = SYMBOL_FIELDS.filter(f => f.group === 'single');
+    const split = SYMBOL_FIELDS.filter(f => f.group === 'split');
+    document.getElementById('single-controls').innerHTML = single.map(group).join('');
+    document.getElementById('split-controls').innerHTML = split.map((f, i) =>
+        `<div style="border-left: 3px solid ${f.accent}; padding-left: 8px;${i < split.length - 1 ? ' margin-bottom: 12px;' : ''}">${group(f)}</div>`
+    ).join('');
+}
+
 function selectCell(index) {
     if (index < 0 || index >= gridState.cells.length) index = 0;
     selectedCellIndex = index;
@@ -70,9 +83,7 @@ function selectCell(index) {
 
     document.getElementById('text-name').value = data.name || '';
     document.getElementById('name-sync').checked = false;
-    document.getElementById('text-single').value = data.singleText;
-    document.getElementById('text-left').value = data.leftText;
-    document.getElementById('text-right').value = data.rightText;
+    SYMBOL_FIELDS.forEach(f => { document.getElementById(`text-${f.key}`).value = data[`${f.key}Text`]; });
 
     syncPalettes(data);
 }
@@ -107,9 +118,7 @@ function setSplitUI(isSplit) {
 function updateCellData() {
     const data = gridState.cells[selectedCellIndex];
     data.name = document.getElementById('text-name').value;
-    data.singleText = document.getElementById('text-single').value;
-    data.leftText = document.getElementById('text-left').value;
-    data.rightText = document.getElementById('text-right').value;
+    SYMBOL_FIELDS.forEach(f => { data[`${f.key}Text`] = document.getElementById(`text-${f.key}`).value; });
     renderGrid();
 }
 
@@ -124,8 +133,6 @@ function clearName() {
     onNameInput();
 }
 
-// チェックが入っているとき、他の車型の「同じ行・同じ列」のマスにも作業名を反映する
-// （相手の行・列が足りないときは、その車型だけ何もしない）
 // チェックが入っているとき、他の車型の「同じ行・同じ列」のマスにも作業名を反映する
 // （相手にその行・列がないときは、その車型だけ何もしない）
 function syncNameToOthers() {

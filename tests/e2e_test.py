@@ -35,7 +35,7 @@ def check(name, cond, detail=''):
 PNG = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==')
 
 
-def prepare_root(root):
+def prepare_root(root, patch=None):
     """リポジトリを、一時フォルダにコピーし、無いファイル（manifest・アイコン）は、仮のもので補う"""
     tmp = pathlib.Path(tempfile.mkdtemp(prefix='indicator_'))
     dst = tmp / 'site'
@@ -45,6 +45,8 @@ def prepare_root(root):
             (dst / name).write_bytes(PNG)
     if not (dst / 'manifest.webmanifest').exists():
         (dst / 'manifest.webmanifest').write_text(json.dumps({'name': 't', 'start_url': './', 'display': 'standalone', 'icons': []}))
+    if patch:
+        patch(dst)
     return dst
 
 
@@ -369,6 +371,69 @@ def t_color_settings(br, base):
     b.close(); a.close()
 
 
+def t_symbol_controls(br, base):
+    a = App(br, base); p = a.open()
+    ids_ok = all(a.ev(f"!!document.getElementById('{i}')") for k in ('single', 'left', 'right') for i in (f'text-{k}', f'palette-{k}', f'palette-{k}-text'))
+    check('【入力欄】指示記号の入力欄と色ボタンが、全体・左・右の3組、作られる', ids_ok)
+    check('【入力欄】各入力欄は、2文字まで・クリアボタン付き', a.ev("[...document.querySelectorAll('#single-controls input,#split-controls input')].every(i=>i.maxLength===2)") and a.ev("document.querySelectorAll('#single-controls .name-row .btn,#split-controls .name-row .btn').length") == 3)
+    check('【入力欄】ラベル・入力例の文字が、定義どおり', p.inner_text('label[for="text-left"]') == '左側 指示記号 (最大2文字)' and a.ev("document.getElementById('text-right').placeholder") == '右' and a.ev("document.getElementById('text-single').placeholder") == '例: A1')
+    acc = a.ev("[...document.querySelectorAll('#split-controls > div')].map(d=>getComputedStyle(d).borderLeftColor)")
+    check('【入力欄】左右の欄に、青・緑の線が付く', acc == ['rgb(59, 130, 246)', 'rgb(16, 185, 129)'], acc)
+    vis = lambda: a.ev("[getComputedStyle(document.getElementById('single-controls')).display,getComputedStyle(document.getElementById('split-controls')).display]")
+    v1 = vis(); p.click('#split-lr-btn'); v2 = vis()
+    check('【入力欄】分割の切り替えで、全体用／左右用の欄が入れ替わる', v1 == ['block', 'none'] and v2 == ['none', 'block'], (v1, v2))
+    for k, txt in (('left', 'ア'), ('right', 'イ')):
+        p.fill(f'#text-{k}', txt); p.click(f'#palette-{k} .color-btn[title="アカ"]'); p.click(f'#palette-{k}-text .color-btn[title="キイ"]')
+    c = a.ev('gridState.cells[0]')
+    check('【入力欄】左・右の文字・背景色・文字色が、それぞれ正しい項目に入る', c['leftText'] == 'ア' and c['rightText'] == 'イ' and c['leftColor'] == '#ef4444' and c['rightTextColor'] == '#facc15' and c['singleText'] == '', c)
+    check('【入力欄】別のマスを選ぶと、入力欄の中身が入れ替わる', (p.evaluate('selectCell(1)'), p.input_value('#text-left'))[1] == '')
+    check('【入力欄】エラーが無い', not a.errors, a.errors)
+    a.close()
+
+
+def t_tabs(br, base):
+    a = App(br, base); p = a.open()
+    cols = a.ev("getComputedStyle(document.getElementById('tab-bar')).gridTemplateColumns.split(' ').length")
+    check('【タブ】車型タブが、TYPES の並びから作られる', a.ev("[...document.querySelectorAll('.tab-btn')].map(b=>b.dataset.type+':'+b.textContent).join()") == 'L4:L4,V6:V6,GD:GD')
+    check('【タブ】最初のタブが選択状態で、タブの数だけ列が並ぶ', a.ev("document.querySelector('.tab-btn.active').dataset.type") == 'L4' and cols == 3, cols)
+    p.click('.tab-btn[data-type="V6"]')
+    check('【タブ】タブを押すと、表示する車型と、選択状態が切り替わる', a.ev('activeType') == 'V6' and a.ev("document.querySelector('.tab-btn.active').dataset.type") == 'V6')
+    check('【タブ】エラーが無い', not a.errors, a.errors)
+    a.close()
+
+
+def t_add_type(br, base):
+    """車型を、config.js の TYPES に1つ足しただけで、タブ・保存・QR・共有が、すべて対応するか"""
+    a = App(br, base); p = a.open()
+    check('【車型の追加】タブが4つになり、4列に並ぶ', a.ev("document.querySelectorAll('.tab-btn').length") == 4 and a.ev("getComputedStyle(document.getElementById('tab-bar')).gridTemplateColumns.split(' ').length") == 4)
+    check('【車型の追加】新しい車型は、2行3列（[3,3]）で始まる', a.ev('project.sheets.XX.rowCols') == [3, 3])
+    p.click('.tab-btn[data-type="XX"]'); p.evaluate('applyRowCols([2])'); p.fill('#text-name', 'XX作業'); p.fill('#text-single', 'アカ'); p.click('#palette-single .color-btn[title="アカ"]')
+    check('【車型の追加】新しい車型を、編集できる（行ごとの列数も）', a.ev('activeType') == 'XX' and a.ev('gridState.rowCols') == [2] and a.ev('gridState.cells[0].name') == 'XX作業')
+    p.evaluate("selectCell(1)"); p.check('#name-sync'); p.fill('#text-name', '共通')
+    check('【車型の追加】作業名の反映が、新しい車型にも届く', a.ev("project.sheets.L4.cells[1].name") == '共通')
+    p.fill('#preset-name', 'X'); p.click('text=現在の配置を保存')
+    check('【車型の追加】保存に、新しい車型が入る', a.ev("Object.keys(JSON.parse(localStorage.getItem('indicator_presets')).X.sheets).join()") == 'L4,V6,GD,XX')
+    p.evaluate("o=>localStorage.setItem('indicator_presets',JSON.stringify({旧:o}))", {'processName': '旧', 'sheets': {t: {'rows': 1, 'cols': 2, 'fontSize': 'text-size-md', 'cells': [{'name': t, 'isSplit': False, 'singleText': '', 'singleColor': '#ffffff'}] * 2} for t in ('L4', 'V6', 'GD')}})
+    p.evaluate("applyPreset('旧')")
+    check('【車型の追加】3車型のときに保存したデータを読むと、新しい車型は初期値で補われる', a.ev('project.sheets.XX.rowCols') == [3, 3] and a.ev('project.sheets.GD.rowCols') == [2])
+    p.click('text=🔗 共有/QR'); p.wait_for_function("document.querySelectorAll('#share-types input').length>0")
+    check('【車型の追加】QR共有の選択肢が、4車型になる', a.ev("document.querySelectorAll('#share-types input').length") == 4)
+    p.click('#share-modal >> text=閉じる')
+    p.click('.tab-btn[data-type="XX"]'); p.fill('#text-name', 'ダケ')
+    url = a.ev("buildShareUrl(['XX'])")
+    v = App(br, base); vp = v.open(url[url.index('#'):])
+    vis = lambda t: v.ev(f"(()=>{{const e=document.querySelector('.tab-btn[data-type=\"{t}\"]');return getComputedStyle(e).display!=='none'}})()")
+    check('【車型の追加】QRで受け取ると、新しい車型だけが、閲覧モードで表示される', v.ev('activeType') == 'XX' and v.ev('gridState.cells[0].name') == 'ダケ' and [vis(t) for t in ('L4', 'V6', 'GD', 'XX')] == [False, False, False, True])
+    # 3車型だけの旧アプリが作るQR（XXを含まない）も、読める
+    old = {'v': 3, 'n': '', 'p': ['ffffff'], 's': {'L4': {'r': [3], 'f': 'au', 'k': [['', 0, '', 0, -1]] * 3}}}
+    w = App(br, base); w.open('#d=r' + b64url(json.dumps(old).encode()))
+    check('【車型の追加】3車型の頃のQRも、そのまま読める', w.ev('activeType') == 'L4' and w.ev('project.sheets.XX.rowCols') == [3, 3])
+    p.click('text=オールクリア')
+    check('【車型の追加】オールクリアが、新しい車型にも効く', a.ev("project.sheets.XX.cells.every(c=>!c.name&&!c.singleText&&c.singleColor==='#ffffff')"))
+    check('【車型の追加】エラーが無い', not a.errors and not v.errors and not w.errors, (a.errors, v.errors, w.errors))
+    v.close(); w.close(); a.close()
+
+
 def t_offline(br, base, root):
     a = App(br, base); p = a.open()
     p.evaluate('navigator.serviceWorker.ready.then(()=>1)'); p.wait_for_timeout(1500)
@@ -388,7 +453,7 @@ def t_offline(br, base, root):
     a.close()
 
 
-TESTS = [t_initial, t_row_frames, t_colors_and_clear, t_name_sync, t_save_flow, t_mismatch, t_presets_legacy,
+TESTS = [t_initial, t_symbol_controls, t_tabs, t_row_frames, t_colors_and_clear, t_name_sync, t_save_flow, t_mismatch, t_presets_legacy,
          t_qr_roundtrip, t_legacy_qr, t_auto_font, t_selected_style, t_color_settings]
 
 
@@ -403,6 +468,20 @@ def run(root):
                     t(br, base)
                 except Exception as e:  # テスト自体が止まった
                     check(f'{t.__name__}（テストが途中で止まった）', False, repr(e)[:300])
+            try:
+                def add_type(d):
+                    cfg = d / 'js' / 'config.js'
+                    t = cfg.read_text(encoding='utf-8')
+                    assert "const TYPES = ['L4', 'V6', 'GD'];" in t, 'config.js の TYPES の書き方が変わりました（テストを直してください）'
+                    cfg.write_text(t.replace("const TYPES = ['L4', 'V6', 'GD'];", "const TYPES = ['L4', 'V6', 'GD', 'XX'];"), encoding='utf-8')
+                site2 = prepare_root(root, patch=add_type)
+                srv2, base2 = start_server(site2)
+                try:
+                    t_add_type(br, base2)
+                finally:
+                    srv2.shutdown(); shutil.rmtree(site2.parent, ignore_errors=True)
+            except Exception as e:
+                check('t_add_type（テストが途中で止まった）', False, repr(e)[:300])
             try:
                 t_offline(br, base, site)
             except Exception as e:

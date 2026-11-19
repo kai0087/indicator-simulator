@@ -3,4 +3,4 @@
 // sw.js・index.html・README.md の版も、まとめて更新されます。
 // （指示ビラ・レイアウトシミュレータ / MIT License）
 
-const APP_VERSION = '2.1.0';
+const APP_VERSION = '2.2.0';

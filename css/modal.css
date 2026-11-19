@@ -39,17 +39,6 @@
     margin-bottom: 12px;
 }
 
-.modal-textarea {
-    width: 100%;
-    height: 120px;
-    font-family: monospace;
-    font-size: 0.8rem;
-    padding: 8px;
-    border: 1px solid var(--border-color);
-    border-radius: 6px;
-    margin-bottom: 12px;
-    resize: vertical;
-}
 
 .qr-display {
     display: flex;

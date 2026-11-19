@@ -96,6 +96,10 @@ def run_checks(root):
     # 6. onclick などが呼ぶ関数
     handlers = set(re.findall(r'\son\w+="\s*(?:[\w.]+\()?\s*(\w+)\(', html))
     handlers |= set(re.findall(r'\son(?:click|input|change)="(\w+)\(', html))
+    for f in js_files:
+        jt = f.read_text(encoding='utf-8')
+        handlers |= set(re.findall(r'on(?:click|input|change)=\\?"(\w+)\(', jt))
+        handlers |= set(re.findall(r"setAttribute\('on\w+',\s*`(\w+)\(", jt))
     defined = set(seen)
     undefined = sorted(h for h in handlers if h not in defined and h not in {'event', 'window'})
     # window.print() など標準の関数は除く

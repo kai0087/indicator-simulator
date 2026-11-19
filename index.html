@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- 指示ビラ・レイアウトシミュレータ ver 2.1.0 / MIT License / 内蔵ライブラリの権利表記は THIRD_PARTY_LICENSES.md を参照 -->
+<!-- 指示ビラ・レイアウトシミュレータ ver 2.2.0 / MIT License / 内蔵ライブラリの権利表記は THIRD_PARTY_LICENSES.md を参照 -->
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
@@ -35,11 +35,7 @@
     </header>
 
     <!-- 車型タブ -->
-    <nav class="tab-bar no-print">
-        <button class="tab-btn active" data-type="L4" onclick="switchTab('L4')">L4</button>
-        <button class="tab-btn" data-type="V6" onclick="switchTab('V6')">V6</button>
-        <button class="tab-btn" data-type="GD" onclick="switchTab('GD')">GD</button>
-    </nav>
+    <nav class="tab-bar no-print" id="tab-bar"></nav>
 
     <!-- 閲覧モードの案内バー（QRで受け取ったときだけ表示） -->
     <div class="view-bar no-print">
@@ -112,53 +108,10 @@
                 </div>
 
                 <!-- 単一マス用コントロール -->
-                <div id="single-controls">
-                    <div class="input-group">
-                        <label for="text-single">指示記号 (最大2文字)</label>
-                        <div class="name-row"><input type="text" id="text-single" class="input-text" maxlength="2" placeholder="例: A1" oninput="updateCellData()"><button type="button" class="btn" onclick="clearSymbol('single')">✕ クリア</button></div>
-                    </div>
-                    <div class="input-group">
-                        <label>背景色</label>
-                        <div id="palette-single" class="color-palette"></div>
-                    </div>
-                    <div class="input-group">
-                        <label>指示記号の色</label>
-                        <div id="palette-single-text" class="color-palette"></div>
-                    </div>
-                </div>
+                <div id="single-controls"></div>
 
                 <!-- 左右分割用コントロール -->
-                <div id="split-controls" style="display: none;">
-                    <div style="border-left: 3px solid #3b82f6; padding-left: 8px; margin-bottom: 12px;">
-                        <div class="input-group">
-                            <label for="text-left">左側 指示記号 (最大2文字)</label>
-                            <div class="name-row"><input type="text" id="text-left" class="input-text" maxlength="2" placeholder="左" oninput="updateCellData()"><button type="button" class="btn" onclick="clearSymbol('left')">✕ クリア</button></div>
-                        </div>
-                        <div class="input-group">
-                            <label>左側 背景色</label>
-                            <div id="palette-left" class="color-palette"></div>
-                        </div>
-                    <div class="input-group">
-                        <label>左側 指示記号の色</label>
-                        <div id="palette-left-text" class="color-palette"></div>
-                    </div>
-                    </div>
-
-                    <div style="border-left: 3px solid #10b981; padding-left: 8px;">
-                        <div class="input-group">
-                            <label for="text-right">右側 指示記号 (最大2文字)</label>
-                            <div class="name-row"><input type="text" id="text-right" class="input-text" maxlength="2" placeholder="右" oninput="updateCellData()"><button type="button" class="btn" onclick="clearSymbol('right')">✕ クリア</button></div>
-                        </div>
-                        <div class="input-group">
-                            <label>右側 背景色</label>
-                            <div id="palette-right" class="color-palette"></div>
-                        </div>
-                    <div class="input-group">
-                        <label>右側 指示記号の色</label>
-                        <div id="palette-right-text" class="color-palette"></div>
-                    </div>
-                    </div>
-                </div>
+                <div id="split-controls" style="display: none;"></div>
             </div>
 
             <!-- レイアウト保存・読込セクション -->

@@ -143,19 +143,6 @@
     print-color-adjust: exact;
 }
 
-/* 文字サイズクラス */
-.text-size-sm { font-size: 1rem; }
-
-.text-size-md { font-size: 1.4rem; }
-
-.text-size-lg { font-size: 2rem; }
-
-@media (max-width: 600px) {
-    .text-size-sm { font-size: 0.75rem; }
-    .text-size-md { font-size: 1rem; }
-    .text-size-lg { font-size: 1.3rem; }
-}
-
 /* 行ごとの列数（行単位でマス数を変えられる） */
 .sheet-row { display: grid; gap: 2px; min-height: 0; min-width: 0; }
 

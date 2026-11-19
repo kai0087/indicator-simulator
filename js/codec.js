@@ -37,8 +37,6 @@ function sheetToCompact(sheet, idx) {
 }
 
 // 受け取ったデータを検査しながら1枚に戻す（不正なデータは例外にする）
-// 受け取ったデータを検査しながら1枚に戻す（不正なデータは例外にする）
-// 受け取ったデータを検査しながら1枚に戻す（不正なデータは例外にする）
 // colorOf：色の番号 → 色コード、ver：QRの形式の番号
 function compactToSheet(o, colorOf, ver) {
     // r：行ごとの列数の配列（形式2以降）／ 形式1は r=行数・c=列数
@@ -76,7 +74,6 @@ function compactToSheet(o, colorOf, ver) {
     return { rows: rowCols.length, rowCols: rowCols, fontSize: 'text-size-auto', cells: cells };
 }
 
-// QRに入れるURL（アプリのアドレス + #d=データ）を作る
 // QRに入れるURL（アプリのアドレス + #d=データ）を作る
 async function buildShareUrl(types) {
     const pal = []; // 使った色コードの一覧（QRの中で、色を番号で表すため）

@@ -2,7 +2,6 @@
 // （指示ビラ・レイアウトシミュレータ / MIT License）
 
 // 閲覧モード：受け取った車型のタブだけを出し、指示ビラ以外の画面を隠す
-// 閲覧モード：受け取った車型のタブだけを出し、指示ビラ以外の画面を隠す
 function enterViewMode(types) {
     document.body.classList.add('view-mode');
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('hidden', !types.includes(b.dataset.type)));
